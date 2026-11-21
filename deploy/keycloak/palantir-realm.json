@@ -1,0 +1,147 @@
+{
+  "realm": "palantir",
+  "enabled": true,
+  "displayName": "Palantir Trading Platform",
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "Admin",
+        "description": "Full administrator permissions"
+      },
+      {
+        "name": "Trader",
+        "description": "Order placement and trade blotter access"
+      },
+      {
+        "name": "RiskOfficer",
+        "description": "Risk parameters and limit management"
+      },
+      {
+        "name": "Auditor",
+        "description": "Read-only access to regulatory compliance audit logs"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "palantir-shell",
+      "name": "Palantir Micro UI Shell",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:5000/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "palantir-gateway",
+      "name": "Palantir YARP Gateway Service",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "palantir-gateway-secret-2026",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "palantir-mcp",
+      "name": "Palantir MCP Tools Client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:5100/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@palantir.local",
+      "firstName": "System",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Admin"
+      ]
+    },
+    {
+      "username": "trader1",
+      "enabled": true,
+      "email": "trader1@palantir.local",
+      "firstName": "Alex",
+      "lastName": "Trader",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "trader123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Trader"
+      ]
+    },
+    {
+      "username": "riskofficer1",
+      "enabled": true,
+      "email": "risk@palantir.local",
+      "firstName": "Rachel",
+      "lastName": "Risk",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "risk123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "RiskOfficer"
+      ]
+    },
+    {
+      "username": "auditor1",
+      "enabled": true,
+      "email": "auditor@palantir.local",
+      "firstName": "Arthur",
+      "lastName": "Auditor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "audit123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Auditor"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Palantir.IamService</RootNamespace>
+    <AssemblyName>Palantir.IamService</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+    <ProjectReference Include="..\Palantir.Iam.Contracts\Palantir.Iam.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+</Project>

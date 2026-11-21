@@ -1,0 +1,55 @@
+<Solution>
+  <Folder Name="/src/Aspire/">
+    <Project Path="src/Aspire/Palantir.AppHost/Palantir.AppHost.csproj" />
+    <Project Path="src/Aspire/Palantir.ServiceDefaults/Palantir.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Palantir.SharedKernel/Palantir.SharedKernel.csproj" />
+    <Project Path="src/BuildingBlocks/Palantir.Constants/Palantir.Constants.csproj" />
+    <Project Path="src/BuildingBlocks/Palantir.Platform/Palantir.Platform.csproj" />
+    <Project Path="src/BuildingBlocks/Palantir.Generators/Palantir.Generators.csproj" />
+    <Project Path="src/BuildingBlocks/Palantir.Generators.Abstractions/Palantir.Generators.Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/Palantir.Gateway/Palantir.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Iam/">
+    <Project Path="src/Services/Iam/Palantir.Iam.Contracts/Palantir.Iam.Contracts.csproj" />
+    <Project Path="src/Services/Iam/Palantir.IamService/Palantir.IamService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Oms/">
+    <Project Path="src/Services/Oms/Palantir.Oms.Contracts/Palantir.Oms.Contracts.csproj" />
+    <Project Path="src/Services/Oms/Palantir.OmsService/Palantir.OmsService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Execution/">
+    <Project Path="src/Services/Execution/Palantir.LocalEngineService/Palantir.LocalEngineService.csproj" />
+    <Project Path="src/Services/Execution/Palantir.ExternalGatewayService/Palantir.ExternalGatewayService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/MarketData/">
+    <Project Path="src/Services/MarketData/Palantir.MarketDataService/Palantir.MarketDataService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Risk/">
+    <Project Path="src/Services/Risk/Palantir.RiskService/Palantir.RiskService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Portfolio/">
+    <Project Path="src/Services/Portfolio/Palantir.PortfolioService/Palantir.PortfolioService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Settlement/">
+    <Project Path="src/Services/Settlement/Palantir.SettlementService/Palantir.SettlementService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Audit/">
+    <Project Path="src/Services/Audit/Palantir.AuditService/Palantir.AuditService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/AiAssistant/">
+    <Project Path="src/Services/AiAssistant/Palantir.AiAssistantService/Palantir.AiAssistantService.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Palantir.ArchTests/Palantir.ArchTests.csproj" />
+    <Project Path="tests/Palantir.ContractTests/Palantir.ContractTests.csproj" />
+    <Project Path="tests/Palantir.Testing.Shared/Palantir.Testing.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/Services/">
+    <Project Path="tests/Services/Palantir.LocalEngineService.UnitTests/Palantir.LocalEngineService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.OmsService.UnitTests/Palantir.OmsService.UnitTests.csproj" />
+  </Folder>
+</Solution>

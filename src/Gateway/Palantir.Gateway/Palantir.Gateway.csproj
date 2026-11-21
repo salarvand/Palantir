@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Palantir.Gateway</RootNamespace>
+    <AssemblyName>Palantir.Gateway</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+</Project>

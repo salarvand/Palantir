@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.Constants</RootNamespace>
+    <AssemblyName>Palantir.Constants</AssemblyName>
+  </PropertyGroup>
+</Project>

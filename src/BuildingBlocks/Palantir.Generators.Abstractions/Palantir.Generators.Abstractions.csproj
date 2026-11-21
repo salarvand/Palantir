@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Palantir.Generators.Abstractions</RootNamespace>
+    <AssemblyName>Palantir.Generators.Abstractions</AssemblyName>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,92 @@
+<Project>
+  <ItemGroup>
+    <!-- Aspire & Hosting -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.Kafka" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.Keycloak" Version="13.6.5-preview.1.26559.7" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.2.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="9.1.0" />
+
+    <!-- WolverineFx -->
+    <PackageVersion Include="WolverineFx" Version="3.8.0" />
+    <PackageVersion Include="WolverineFx.Http" Version="3.8.0" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="3.8.0" />
+    <PackageVersion Include="WolverineFx.Kafka" Version="3.8.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="3.8.0" />
+
+    <!-- Microsoft Orleans -->
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="9.1.2" />
+    <PackageVersion Include="Microsoft.Orleans.Sdk" Version="9.1.2" />
+    <PackageVersion Include="Microsoft.Orleans.Clustering.AdoNet" Version="9.1.2" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.AdoNet" Version="9.1.2" />
+    <PackageVersion Include="Microsoft.Orleans.Reminders.AdoNet" Version="9.1.2" />
+    <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="9.1.2" />
+
+    <!-- MassTransit (Sagas & Hybrid Messaging) -->
+    <PackageVersion Include="MassTransit" Version="8.3.6" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.3.6" />
+    <PackageVersion Include="MassTransit.Kafka" Version="8.3.6" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.3.6" />
+
+    <!-- Domain & Value Objects -->
+    <PackageVersion Include="Vogen" Version="6.0.0" />
+    <PackageVersion Include="FluentValidation" Version="11.11.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+
+    <!-- Database & Caching -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageVersion>
+    <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.1.0" />
+    <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.1.0" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.13.17" />
+
+    <!-- API & Documentation -->
+    <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
+    <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.0.24" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.2" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+
+    <!-- Security & IAM -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2" />
+
+    <!-- Observability & Diagnostics -->
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.21.0" />
+
+
+    <!-- Roslyn Source Generator Dependencies -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageVersion>
+
+    <!-- Testing Frameworks -->
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
+    <PackageVersion Include="TUnit" Version="0.16.14" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="Bogus" Version="35.6.2" />
+    <PackageVersion Include="ArchUnitNET" Version="0.11.3" />
+    <PackageVersion Include="ArchUnitNET.xUnit" Version="0.11.3" />
+    <PackageVersion Include="PactNet" Version="5.0.1" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.Kafka" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.Redis" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.Keycloak" Version="4.3.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+  </ItemGroup>
+</Project>

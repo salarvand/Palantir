@@ -1,0 +1,31 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <RootNamespace>Palantir.AppHost</RootNamespace>
+    <AssemblyName>Palantir.AppHost</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Palantir.Constants\Palantir.Constants.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\Gateway\Palantir.Gateway\Palantir.Gateway.csproj" />
+    <ProjectReference Include="..\..\Services\Iam\Palantir.IamService\Palantir.IamService.csproj" />
+    <ProjectReference Include="..\..\Services\Oms\Palantir.OmsService\Palantir.OmsService.csproj" />
+    <ProjectReference Include="..\..\Services\Execution\Palantir.LocalEngineService\Palantir.LocalEngineService.csproj" />
+    <ProjectReference Include="..\..\Services\Execution\Palantir.ExternalGatewayService\Palantir.ExternalGatewayService.csproj" />
+    <ProjectReference Include="..\..\Services\MarketData\Palantir.MarketDataService\Palantir.MarketDataService.csproj" />
+    <ProjectReference Include="..\..\Services\Risk\Palantir.RiskService\Palantir.RiskService.csproj" />
+    <ProjectReference Include="..\..\Services\Portfolio\Palantir.PortfolioService\Palantir.PortfolioService.csproj" />
+    <ProjectReference Include="..\..\Services\Settlement\Palantir.SettlementService\Palantir.SettlementService.csproj" />
+    <ProjectReference Include="..\..\Services\Audit\Palantir.AuditService\Palantir.AuditService.csproj" />
+    <ProjectReference Include="..\..\Services\AiAssistant\Palantir.AiAssistantService\Palantir.AiAssistantService.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+    <PackageReference Include="Aspire.Hosting.Kafka" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Palantir.AiAssistantService</RootNamespace>
+    <AssemblyName>Palantir.AiAssistantService</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+  </ItemGroup>
+</Project>

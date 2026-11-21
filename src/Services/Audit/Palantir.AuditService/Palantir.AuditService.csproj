@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Palantir.AuditService</RootNamespace>
+    <AssemblyName>Palantir.AuditService</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
+  </ItemGroup>
+</Project>

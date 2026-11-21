@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.Testing.Shared</RootNamespace>
+    <AssemblyName>Palantir.Testing.Shared</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.SharedKernel\Palantir.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Constants\Palantir.Constants.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bogus" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+</Project>

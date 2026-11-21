@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.ArchTests</RootNamespace>
+    <AssemblyName>Palantir.ArchTests</AssemblyName>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.SharedKernel\Palantir.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Constants\Palantir.Constants.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+</Project>

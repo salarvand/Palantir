@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.SharedKernel</RootNamespace>
+    <AssemblyName>Palantir.SharedKernel</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Vogen" />
+  </ItemGroup>
+</Project>

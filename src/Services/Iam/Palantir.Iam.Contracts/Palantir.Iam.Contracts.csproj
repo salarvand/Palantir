@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.Iam.Contracts</RootNamespace>
+    <AssemblyName>Palantir.Iam.Contracts</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.SharedKernel\Palantir.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

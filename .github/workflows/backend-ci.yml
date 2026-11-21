@@ -1,0 +1,33 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Palantir.slnx
+
+      - name: Build Solution
+        run: dotnet build Palantir.slnx --no-restore --configuration Release
+
+      - name: Run Architecture Governance Tests
+        run: dotnet test tests/Palantir.ArchTests/Palantir.ArchTests.csproj --no-build --configuration Release
+
+      - name: Run Matching Engine Unit Tests
+        run: dotnet test tests/Services/Palantir.LocalEngineService.UnitTests/Palantir.LocalEngineService.UnitTests.csproj --no-build --configuration Release
+
+      - name: Run OMS Unit Tests
+        run: dotnet test tests/Services/Palantir.OmsService.UnitTests/Palantir.OmsService.UnitTests.csproj --no-build --configuration Release
