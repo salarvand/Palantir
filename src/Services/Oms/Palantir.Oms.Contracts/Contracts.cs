@@ -6,8 +6,15 @@ public interface IOrderGrain : IGrainWithGuidKey
 {
     Task<OrderStateSnapshot> SubmitOrderAsync(SubmitOrderRequest request);
     Task<OrderStateSnapshot> CancelOrderAsync(string reason);
+    Task<OrderStateSnapshot> ExpireOrderAsync();
     Task<OrderStateSnapshot> ApplyExecutionReportAsync(decimal fillQuantity, decimal fillPrice, string tradeId);
     Task<OrderStateSnapshot> GetSnapshotAsync();
+}
+
+public interface IOrderExpiryGrain : IGrainWithGuidKey
+{
+    Task TrackOrderExpiryAsync(Guid orderId, TimeSpan duration);
+    Task CancelOrderExpiryAsync();
 }
 
 public interface IClientSessionGrain : IGrainWithStringKey
@@ -27,7 +34,8 @@ public record SubmitOrderRequest(
     decimal Quantity,
     decimal Price,
     TimeInForce TimeInForce,
-    string VenueType
+    string VenueType,
+    TimeSpan? ExpiryDuration = null
 );
 
 [GenerateSerializer]
@@ -46,4 +54,12 @@ public record OrderStateSnapshot(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? LastUpdatedAtUtc,
     string? RejectionReason
+);
+
+[GenerateSerializer]
+public record TradeExecutedEvent(
+    Guid OrderId,
+    Guid TradeId,
+    decimal FilledQuantity,
+    decimal ExecutionPrice
 );

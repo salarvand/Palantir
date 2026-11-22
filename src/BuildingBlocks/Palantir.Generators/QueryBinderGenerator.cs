@@ -64,17 +64,39 @@ public class QueryBinderGenerator : IIncrementalGenerator
             var propName = member.Name;
             var propType = member.Type.ToDisplayString();
 
+            var queryParamKey = propName.ToLowerInvariant();
+            var paramAttr = member.GetAttributes().FirstOrDefault(a =>
+                a.AttributeClass?.Name is "QueryParamNameAttribute" or "QueryParamName");
+            if (paramAttr is not null && paramAttr.ConstructorArguments.Length > 0 &&
+                paramAttr.ConstructorArguments[0].Value is string customName &&
+                !string.IsNullOrWhiteSpace(customName))
+            {
+                queryParamKey = customName;
+            }
+
             if (propType == "string" || propType == "string?")
             {
-                sb.AppendLine($"        if (query.TryGetValue(\"{propName.ToLowerInvariant()}\", out var {propName}Val)) result.{propName} = {propName}Val.ToString();");
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val)) result.{propName} = {propName}Val.ToString();");
             }
             else if (propType == "int" || propType == "int?")
             {
-                sb.AppendLine($"        if (query.TryGetValue(\"{propName.ToLowerInvariant()}\", out var {propName}Val) && int.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val) && int.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
             }
             else if (propType == "decimal" || propType == "decimal?")
             {
-                sb.AppendLine($"        if (query.TryGetValue(\"{propName.ToLowerInvariant()}\", out var {propName}Val) && decimal.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val) && decimal.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
+            }
+            else if (propType == "long" || propType == "long?")
+            {
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val) && long.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
+            }
+            else if (propType == "bool" || propType == "bool?")
+            {
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val) && bool.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
+            }
+            else if (propType == "System.Guid" || propType == "System.Guid?" || propType == "Guid" || propType == "Guid?")
+            {
+                sb.AppendLine($"        if (query.TryGetValue(\"{queryParamKey}\", out var {propName}Val) && System.Guid.TryParse({propName}Val, out var {propName}Parsed)) result.{propName} = {propName}Parsed;");
             }
         }
 

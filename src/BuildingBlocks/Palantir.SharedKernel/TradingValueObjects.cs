@@ -40,18 +40,18 @@ public readonly record struct Money(decimal Amount, string Currency)
     public static Money operator +(Money left, Money right)
     {
         if (!string.Equals(left.Currency, right.Currency, StringComparison.OrdinalIgnoreCase))
-            throw exciting(left.Currency, right.Currency);
+            throw ThrowCurrencyMismatchException(left.Currency, right.Currency);
         return new Money(left.Amount + right.Amount, left.Currency);
     }
 
     public static Money operator -(Money left, Money right)
     {
         if (!string.Equals(left.Currency, right.Currency, StringComparison.OrdinalIgnoreCase))
-            throw exciting(left.Currency, right.Currency);
+            throw ThrowCurrencyMismatchException(left.Currency, right.Currency);
         return new Money(left.Amount - right.Amount, left.Currency);
     }
 
-    private static InvalidOperationException exciting(string c1, string c2) =>
+    private static InvalidOperationException ThrowCurrencyMismatchException(string c1, string c2) =>
         new($"Cannot operate on money with different currencies: '{c1}' vs '{c2}'.");
 }
 

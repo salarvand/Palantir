@@ -1,4 +1,7 @@
+using Palantir.Gateway;
 using Palantir.ServiceDefaults;
+using Yarp.ReverseProxy.Configuration;
+using Yarp.ReverseProxy.ServiceDiscovery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,8 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+builder.Services.AddSingleton<IDestinationResolver, AspireServiceDiscoveryDestinationResolver>();
 
 var app = builder.Build();
 

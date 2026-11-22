@@ -127,7 +127,7 @@ Palantir/
 │   │
 │   ├── BuildingBlocks/
 │   │   ├── Palantir.SharedKernel/          # DDD primitives: Entity, AggregateRoot, DomainEvent
-│   │   ├── Palantir.Platform/               # Cross-cutting: CQRS, EF Core, Redis, Auth, Endpoints
+│   │   ├── Palantir.Chassis/               # Cross-cutting: CQRS, EF Core, Redis, Auth, Endpoints
 │   │   ├── Palantir.Constants/             # Centralized system constants, permissions, Aspire names
 │   │   ├── Palantir.Generators/            # Roslyn Source Generators (Fast Query Parameter Binder)
 │   │   └── Palantir.Generators.Abstractions/
@@ -253,8 +253,8 @@ Palantir/
   - Auditing (`IAuditableEntity`) and Soft Deletes (`ISoftDeletable`).
 - **Specifications**: Base `ISpecification<T>` and specification evaluator for domain constraints.
 
-#### `Palantir.Platform`
-- **Zero-Reflection CQRS**: `WolverineFx (https://wolverinefx.net/)` for compile-time generated `ICommand<T>` / `IQuery<T>` handlers with pipeline behaviors (validation, logging, tracing).
+#### `Palantir.Chassis`
+- **Zero-Reflection CQRS**: `Mediator.SourceGenerator` for compile-time generated `ICommand<T>` / `IQuery<T>` handlers with pipeline behaviors (validation, logging, tracing).
 - **Minimal API Discovery**: Automatic scanning and registration via `IEndpoint` with `Asp.Versioning.Http`.
 - **Distributed Caching**: `FusionCache` (L1 MemoryCache + L2 Redis) for ultra-low-latency quote and order book queries.
 - **Security & Authorization**:

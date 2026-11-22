@@ -1,0 +1,9 @@
+{
+  "feature_id": "phase-1-building-blocks",
+  "spec_hash": "8c17e60fdeb8e2d9631786b7f83147c5ec908fc43309456ac6c907b23a8baefc",
+  "plan_hash": "12022fa41dd523a0484b947f5df1d24a1f70aae5941d30081dc005695a13cf43",
+  "status": "approved",
+  "approved_by": "user",
+  "approved_at": "2026-11-22T07:17:21.984551+00:00",
+  "commit_sha": "fbd0b53b3a5e0b93dd5a6d803207c2e67fd2d9a5"
+}

@@ -41,7 +41,9 @@ public class TimescaleDbContext : DbContext
 
         modelBuilder.Entity<MarketTick>(b =>
         {
-            b.HasKey(t => t.Id);
+            b.ToTable("market_ticks");
+            b.HasKey(t => new { t.Id, t.TimestampUtc });
+            b.Property(t => t.Id).ValueGeneratedOnAdd();
             b.Property(t => t.Symbol).IsRequired().HasMaxLength(20);
             b.Property(t => t.Price).HasPrecision(18, 8);
             b.Property(t => t.Quantity).HasPrecision(18, 8);

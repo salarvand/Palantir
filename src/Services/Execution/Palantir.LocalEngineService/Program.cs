@@ -1,5 +1,6 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Palantir.Constants;
 using Palantir.LocalEngineService.Timescale;
 using Palantir.Platform.Caching;
@@ -37,6 +38,17 @@ builder.Services.AddMassTransit(x =>
         cfg.Host(new Uri(rabbitHost));
         cfg.ConfigureEndpoints(context);
     });
+
+    x.AddRider(rider =>
+    {
+        rider.AddProducer<string, MarketTick>(MessagingConstants.KafkaTopics.MarketTicks);
+        rider.UsingKafka((context, k) =>
+        {
+            var kafkaHost = builder.Configuration.GetConnectionString(AspireResourceNames.Kafka)
+                            ?? "localhost:9092";
+            k.Host(kafkaHost);
+        });
+    });
 });
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
@@ -49,7 +61,8 @@ app.UsePalantirExceptionHandler();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<TimescaleDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await TimescaleMigration.InitializeTimescaleAsync(db, logger);
 }
 
 app.MapEndpoints();

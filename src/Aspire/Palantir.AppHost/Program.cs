@@ -28,4 +28,93 @@ var keycloak = builder.AddContainer(AspireResourceNames.Keycloak, "quay.io/keycl
     .WithBindMount("../../deploy/keycloak/palantir-realm.json", "/opt/keycloak/data/import/palantir-realm.json")
     .WithArgs("start-dev", "--import-realm");
 
+// Polyglot Persistence Containers
+var timescale = builder.AddContainer(AspireResourceNames.Timescale, "timescale/timescaledb-ha", "pg16")
+    .WithEndpoint(port: 5433, targetPort: 5432, name: "tcp")
+    .WithEnvironment("POSTGRES_DB", AspireResourceNames.TimescaleDb)
+    .WithEnvironment("POSTGRES_USER", "postgres")
+    .WithEnvironment("POSTGRES_PASSWORD", "postgres")
+    .WithVolume("timescaledb-data", "/var/lib/postgresql/data");
+
+var elasticsearch = builder.AddContainer(AspireResourceNames.Elasticsearch, "docker.elastic.co/elasticsearch/elasticsearch", "8.17.0")
+    .WithHttpEndpoint(port: 9200, targetPort: 9200, name: "http")
+    .WithEnvironment("discovery.type", "single-node")
+    .WithEnvironment("xpack.security.enabled", "false")
+    .WithVolume("elasticsearch-data", "/usr/share/elasticsearch/data");
+
+var qdrant = builder.AddContainer(AspireResourceNames.Qdrant, "qdrant/qdrant", "latest")
+    .WithHttpEndpoint(port: 6333, targetPort: 6333, name: "http")
+    .WithEndpoint(port: 6334, targetPort: 6334, name: "grpc")
+    .WithVolume("qdrant-data", "/qdrant/storage");
+
+// Microservices & Edge Projects
+var iamService = builder.AddProject<Projects.Palantir_IamService>(AspireResourceNames.IamService)
+    .WithReference(palantirDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(keycloak.GetEndpoint("http"))
+    .WithEnvironment("Keycloak__Url", keycloak.GetEndpoint("http"));
+
+var localEngine = builder.AddProject<Projects.Palantir_LocalEngineService>(AspireResourceNames.LocalEngineService)
+    .WithReference(palantirDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(kafka)
+    .WithReference(timescale.GetEndpoint("tcp"))
+    .WithEnvironment("ConnectionStrings__TimescaleDb", "Host=localhost;Port=5433;Database=TimescaleDb;Username=postgres;Password=postgres");
+
+var externalGateway = builder.AddProject<Projects.Palantir_ExternalGatewayService>(AspireResourceNames.ExternalGatewayService)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(kafka);
+
+var omsService = builder.AddProject<Projects.Palantir_OmsService>(AspireResourceNames.OmsService)
+    .WithReference(palantirDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(localEngine)
+    .WithReference(externalGateway);
+
+var marketData = builder.AddProject<Projects.Palantir_MarketDataService>(AspireResourceNames.MarketDataService)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(kafka);
+
+var riskService = builder.AddProject<Projects.Palantir_RiskService>(AspireResourceNames.RiskService)
+    .WithReference(redis)
+    .WithReference(rabbitmq);
+
+var portfolioService = builder.AddProject<Projects.Palantir_PortfolioService>(AspireResourceNames.PortfolioService)
+    .WithReference(palantirDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq);
+
+var settlementService = builder.AddProject<Projects.Palantir_SettlementService>(AspireResourceNames.SettlementService)
+    .WithReference(palantirDb)
+    .WithReference(redis)
+    .WithReference(rabbitmq);
+
+var auditService = builder.AddProject<Projects.Palantir_AuditService>(AspireResourceNames.AuditService)
+    .WithReference(redis)
+    .WithReference(rabbitmq)
+    .WithReference(elasticsearch.GetEndpoint("http"))
+    .WithEnvironment("Elasticsearch__Url", elasticsearch.GetEndpoint("http"));
+
+var aiAssistant = builder.AddProject<Projects.Palantir_AiAssistantService>(AspireResourceNames.AiAssistantService)
+    .WithReference(redis)
+    .WithReference(qdrant.GetEndpoint("http"))
+    .WithEnvironment("Qdrant__Endpoint", qdrant.GetEndpoint("http"));
+
+var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.Gateway)
+    .WithReference(iamService)
+    .WithReference(omsService)
+    .WithReference(localEngine)
+    .WithReference(externalGateway)
+    .WithReference(marketData)
+    .WithReference(riskService)
+    .WithReference(portfolioService)
+    .WithReference(settlementService)
+    .WithReference(auditService)
+    .WithReference(aiAssistant);
+
 builder.Build().Run();

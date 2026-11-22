@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Palantir.Constants;
 using Palantir.LocalEngineService.Domain;
 using Palantir.LocalEngineService.Matching;
 using Palantir.LocalEngineService.Timescale;
+using Palantir.Oms.Contracts;
 using Palantir.Platform.Endpoints;
 using Palantir.SharedKernel;
 
@@ -58,6 +60,7 @@ public class LocalEngineEndpoints : IEndpoint
         OrderBookEntry entry,
         TimescaleDbContext db,
         IPublishEndpoint publishEndpoint,
+        ITopicProducer<string, MarketTick> topicProducer,
         CancellationToken ct)
     {
         var book = OrderBooks.GetOrAdd(entry.Symbol.ToUpperInvariant(), s => new OrderBook(s));
@@ -77,6 +80,28 @@ public class LocalEngineEndpoints : IEndpoint
 
             db.Ticks.AddRange(ticks);
             await db.SaveChangesAsync(ct);
+
+            foreach (var execution in matchResult.Executions)
+            {
+                await publishEndpoint.Publish(new TradeExecutedEvent(
+                    execution.BuyOrderId,
+                    execution.TradeId,
+                    execution.Quantity,
+                    execution.Price
+                ), ct);
+
+                await publishEndpoint.Publish(new TradeExecutedEvent(
+                    execution.SellOrderId,
+                    execution.TradeId,
+                    execution.Quantity,
+                    execution.Price
+                ), ct);
+            }
+
+            foreach (var tick in ticks)
+            {
+                await topicProducer.Produce(tick.Symbol, tick, ct);
+            }
         }
 
         return Results.Ok(matchResult);
@@ -105,12 +130,31 @@ public class LocalEngineEndpoints : IEndpoint
         TimescaleDbContext db,
         CancellationToken ct)
     {
-        var tf = string.IsNullOrWhiteSpace(timeframe) ? "1m" : timeframe;
+        var tf = string.IsNullOrWhiteSpace(timeframe) ? "1m" : timeframe.ToLowerInvariant();
+        var viewName = tf switch
+        {
+            "1s" => "ohlc_1s",
+            "1m" => "ohlc_1m",
+            "5m" => "ohlc_5m",
+            "1h" => "ohlc_1h",
+            "1d" => "ohlc_1d",
+            _ => "ohlc_1m"
+        };
+
+        var upperSymbol = symbol.ToUpperInvariant();
+        var symbolParam = new NpgsqlParameter("symbol", upperSymbol);
+
+        var sql = $"""
+            SELECT "TimestampUtc", "Symbol", '{tf}' AS "Timeframe", "Open", "High", "Low", "Close", "Volume", "TradeCount"
+            FROM {viewName}
+            WHERE "Symbol" = @symbol
+            ORDER BY "TimestampUtc" DESC
+            LIMIT 100
+        """;
+
         var candles = await db.Candles
+            .FromSqlRaw(sql, symbolParam)
             .AsNoTracking()
-            .Where(c => c.Symbol == symbol.ToUpperInvariant() && c.Timeframe == tf)
-            .OrderByDescending(c => c.TimestampUtc)
-            .Take(100)
             .ToListAsync(ct);
 
         return Results.Ok(candles);

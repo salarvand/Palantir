@@ -75,7 +75,7 @@ public class OrderBookTests
         result.IsFullyFilled.ShouldBeTrue();
         result.FilledQuantity.ShouldBe(50m);
         result.Executions.Count.ShouldBe(1);
-        result.Executions[0].Price.ShouldBe(101.00m); // Execution occurs at the resting price
+        result.Executions[0].Price.ShouldBe(101.00m);
         result.Executions[0].Quantity.ShouldBe(50m);
 
         var (bids, asks) = book.GetDepth();
@@ -123,6 +123,58 @@ public class OrderBookTests
 
         var (bids, asks) = book.GetDepth();
         asks.Count.ShouldBe(1);
-        asks[0].Quantity.ShouldBe(60m); // 60 remaining
+        asks[0].Quantity.ShouldBe(60m);
+    }
+
+    [Fact]
+    public void OrderBook_Should_Maintain_Strict_Price_Time_Priority_At_Same_Price()
+    {
+        // Arrange
+        var book = new OrderBook("PAL/USD");
+        var firstOrderId = Guid.NewGuid();
+        var secondOrderId = Guid.NewGuid();
+
+        // Two sell orders at same price: first 20, then 30
+        var ask1 = new OrderBookEntry(firstOrderId, Guid.NewGuid(), "PAL/USD", TradeSide.Sell, OrderType.Limit, 100.00m, 20m, DateTimeOffset.UtcNow);
+        var ask2 = new OrderBookEntry(secondOrderId, Guid.NewGuid(), "PAL/USD", TradeSide.Sell, OrderType.Limit, 100.00m, 30m, DateTimeOffset.UtcNow.AddSeconds(1));
+        book.Match(ask1);
+        book.Match(ask2);
+
+        // Incoming buy for 25
+        var bid = new OrderBookEntry(Guid.NewGuid(), Guid.NewGuid(), "PAL/USD", TradeSide.Buy, OrderType.Limit, 100.00m, 25m, DateTimeOffset.UtcNow.AddSeconds(2));
+
+        // Act
+        var result = book.Match(bid);
+
+        // Assert
+        result.Executions.Count.ShouldBe(2);
+        result.Executions[0].SellOrderId.ShouldBe(firstOrderId);
+        result.Executions[0].Quantity.ShouldBe(20m); // First in, first filled
+        result.Executions[1].SellOrderId.ShouldBe(secondOrderId);
+        result.Executions[1].Quantity.ShouldBe(5m); // Remaining 5 taken from second
+
+        var (bids, asks) = book.GetDepth();
+        asks[0].Quantity.ShouldBe(25m); // 30 - 5 = 25 remaining
+    }
+
+    [Fact]
+    public void OrderBook_Should_Execute_Market_Orders_Immediately()
+    {
+        // Arrange
+        var book = new OrderBook("PAL/USD");
+
+        var ask = new OrderBookEntry(Guid.NewGuid(), Guid.NewGuid(), "PAL/USD", TradeSide.Sell, OrderType.Limit, 150.00m, 10m, DateTimeOffset.UtcNow);
+        book.Match(ask);
+
+        // Incoming Market order
+        var marketBid = new OrderBookEntry(Guid.NewGuid(), Guid.NewGuid(), "PAL/USD", TradeSide.Buy, OrderType.Market, 0m, 10m, DateTimeOffset.UtcNow.AddSeconds(1));
+
+        // Act
+        var result = book.Match(marketBid);
+
+        // Assert
+        result.IsFullyFilled.ShouldBeTrue();
+        result.Executions.Count.ShouldBe(1);
+        result.Executions[0].Price.ShouldBe(150.00m);
     }
 }

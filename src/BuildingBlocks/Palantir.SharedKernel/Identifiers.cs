@@ -36,3 +36,10 @@ public readonly partial struct UserId
     private static Validation Validate(Guid value) =>
         value != Guid.Empty ? Validation.Ok : Validation.Invalid("UserId cannot be empty.");
 }
+
+[ValueObject<Guid>]
+public readonly partial struct ClientId
+{
+    private static Validation Validate(Guid value) =>
+        value != Guid.Empty ? Validation.Ok : Validation.Invalid("ClientId cannot be empty.");
+}

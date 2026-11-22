@@ -1,0 +1,9 @@
+{
+  "feature_id": "phase-5-audit-mcp",
+  "spec_hash": "dbe0ec4c5f80a0f69f0d5c22152b54b12bce546a04856e69a58dcfa96c4a16b5",
+  "plan_hash": "f56b7fbb4bf7a819a55802277eaaebf6fc664e567cf0543ade9736b88b7d7640",
+  "status": "approved",
+  "approved_by": "user",
+  "approved_at": "2026-11-22T07:17:21.984551+00:00",
+  "commit_sha": "fbd0b53b3a5e0b93dd5a6d803207c2e67fd2d9a5"
+}
