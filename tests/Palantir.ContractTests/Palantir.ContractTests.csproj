@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Services\Oms\Palantir.Oms.Contracts\Palantir.Oms.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Services\Execution\Palantir.LocalEngineService\Palantir.LocalEngineService.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="PactNet" />

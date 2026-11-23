@@ -1,0 +1,44 @@
+asyncapi: '3.0.0'
+info:
+  title: Palantir Market Ticks Stream
+  version: '1.0.0'
+  description: High-throughput Kafka market tick stream emitted by Palantir.LocalEngineService upon trade execution.
+servers:
+  kafkaCluster:
+    host: localhost:9092
+    protocol: kafka
+    description: Local Aspire Kafka Broker
+channels:
+  marketTicks:
+    address: palantir.market.ticks
+    messages:
+      marketTickMessage:
+        $ref: '#/components/messages/MarketTick'
+components:
+  messages:
+    MarketTick:
+      name: MarketTick
+      title: Market Tick Event
+      summary: Individual trade match tick with timestamp, price, and volume
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - symbol
+          - price
+          - volume
+          - time
+        properties:
+          symbol:
+            type: string
+            description: Trading pair ticker symbol (e.g. PAL/USD)
+          price:
+            type: number
+            description: Matched trade execution price
+          volume:
+            type: number
+            description: Matched execution volume
+          time:
+            type: string
+            format: date-time
+            description: UTC execution timestamp

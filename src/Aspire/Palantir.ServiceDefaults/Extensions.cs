@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Scalar.AspNetCore;
 
 namespace Palantir.ServiceDefaults;
 
@@ -17,6 +18,7 @@ public static class Extensions
         builder.ConfigureOpenTelemetry();
         builder.AddDefaultHealthChecks();
         builder.Services.AddServiceDiscovery();
+        builder.Services.AddOpenApi();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
@@ -82,6 +84,13 @@ public static class Extensions
         app.MapHealthChecks("/alive", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live")
+        });
+
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
+        {
+            options.WithTitle("Palantir Cloud-Native Platform API")
+                   .WithTheme(ScalarTheme.Moon);
         });
 
         return app;

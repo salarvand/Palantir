@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Palantir.SharedKernel\Palantir.SharedKernel.csproj" />
     <ProjectReference Include="..\..\..\src\Services\Oms\Palantir.OmsService\Palantir.OmsService.csproj" />
   </ItemGroup>
 
@@ -15,5 +16,8 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Bogus" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>

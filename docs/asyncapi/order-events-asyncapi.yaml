@@ -1,0 +1,76 @@
+asyncapi: '3.0.0'
+info:
+  title: Palantir Order Lifecycle Events
+  version: '1.0.0'
+  description: Order lifecycle domain events broadcast via Kafka for analytics and audit logging.
+servers:
+  kafkaCluster:
+    host: localhost:9092
+    protocol: kafka
+channels:
+  orderEvents:
+    address: palantir.order.events
+    messages:
+      orderCreated:
+        $ref: '#/components/messages/OrderCreated'
+      orderMatched:
+        $ref: '#/components/messages/OrderMatched'
+components:
+  messages:
+    OrderCreated:
+      name: OrderCreated
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - orderId
+          - clientId
+          - symbol
+          - side
+          - quantity
+          - price
+        properties:
+          orderId:
+            type: string
+            format: uuid
+          clientId:
+            type: string
+            format: uuid
+          symbol:
+            type: string
+          side:
+            type: string
+            enum: [Buy, Sell]
+          quantity:
+            type: number
+          price:
+            type: number
+          timestampUtc:
+            type: string
+            format: date-time
+    OrderMatched:
+      name: OrderMatched
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - orderId
+          - tradeId
+          - fillQuantity
+          - fillPrice
+        properties:
+          orderId:
+            type: string
+            format: uuid
+          tradeId:
+            type: string
+            format: uuid
+          fillQuantity:
+            type: number
+          fillPrice:
+            type: number
+          status:
+            type: string
+          timestampUtc:
+            type: string
+            format: date-time

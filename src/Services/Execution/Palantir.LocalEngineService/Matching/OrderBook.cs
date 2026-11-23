@@ -122,4 +122,27 @@ public class OrderBook
             return (bids, asks);
         }
     }
+
+    public bool Cancel(Guid orderId)
+    {
+        lock (_lock)
+        {
+            foreach (var book in new[] { _bids, _asks })
+            {
+                foreach (var (price, queue) in book.ToList())
+                {
+                    var filtered = new Queue<OrderBookEntry>(queue.Where(e => e.OrderId != orderId));
+                    if (filtered.Count != queue.Count)
+                    {
+                        if (filtered.Count == 0)
+                            book.Remove(price);
+                        else
+                            book[price] = filtered;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
 }

@@ -11,6 +11,7 @@ public static class AspireResourceNames
     public const string Keycloak = "keycloak";
     public const string Elasticsearch = "elasticsearch";
     public const string Qdrant = "qdrant";
+    public const string Ollama = "ollama";
 
     // Databases
     public const string PalantirDb = "PalantirDb";

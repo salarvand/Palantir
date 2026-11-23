@@ -1,0 +1,64 @@
+asyncapi: '3.0.0'
+info:
+  title: Palantir Settlement Commands & Saga Events
+  version: '1.0.0'
+  description: RabbitMQ asynchronous commands and events driving the two-phase MassTransit settlement saga.
+servers:
+  rabbitmq:
+    host: localhost:5672
+    protocol: amqp
+channels:
+  settlementCommands:
+    address: trading.sagas
+    messages:
+      initiateSettlement:
+        $ref: '#/components/messages/InitiateOrderSettlement'
+      releaseMargin:
+        $ref: '#/components/messages/ReleaseReservedMargin'
+components:
+  messages:
+    InitiateOrderSettlement:
+      name: InitiateOrderSettlementCommand
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - orderId
+          - clientId
+          - symbol
+          - quantity
+          - price
+        properties:
+          orderId:
+            type: string
+            format: uuid
+          clientId:
+            type: string
+            format: uuid
+          symbol:
+            type: string
+          quantity:
+            type: number
+          price:
+            type: number
+    ReleaseReservedMargin:
+      name: ReleaseReservedMarginCommand
+      contentType: application/json
+      payload:
+        type: object
+        required:
+          - orderId
+          - clientId
+          - amount
+          - reason
+        properties:
+          orderId:
+            type: string
+            format: uuid
+          clientId:
+            type: string
+            format: uuid
+          amount:
+            type: number
+          reason:
+            type: string

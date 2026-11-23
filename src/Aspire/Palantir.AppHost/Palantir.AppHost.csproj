@@ -4,6 +4,7 @@
     <IsAspireHost>true</IsAspireHost>
     <RootNamespace>Palantir.AppHost</RootNamespace>
     <AssemblyName>Palantir.AppHost</AssemblyName>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

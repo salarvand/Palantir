@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Palantir.Constants;
+using Palantir.LocalEngineService.Grpc;
 using Palantir.LocalEngineService.Timescale;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
@@ -12,6 +13,7 @@ using Palantir.ServiceDefaults;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.Services.AddGrpc();
 
 var timescaleConn = builder.Configuration.GetConnectionString(AspireResourceNames.TimescaleDb)
                     ?? builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
@@ -66,5 +68,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapEndpoints();
+app.MapGrpcService<MatchingEngineGrpcService>();
 
 app.Run();

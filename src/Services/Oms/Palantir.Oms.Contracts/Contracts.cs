@@ -63,3 +63,36 @@ public record TradeExecutedEvent(
     decimal FilledQuantity,
     decimal ExecutionPrice
 );
+
+public record InitiateOrderSettlementCommand(
+    Guid OrderId,
+    Guid ClientId,
+    string Symbol,
+    decimal Quantity,
+    decimal Price
+);
+
+public record PreTradeRiskApprovedEvent(
+    Guid OrderId,
+    decimal RequiredMargin
+);
+
+public record ReleaseReservedMarginCommand(
+    Guid OrderId,
+    Guid ClientId,
+    decimal Amount,
+    string Reason
+);
+
+public record CheckPreTradeRiskCommand(
+    Guid OrderId,
+    Guid ClientId,
+    string Symbol,
+    decimal Quantity,
+    decimal Price
+);
+
+public record ConfirmSettlementEvent(
+    Guid OrderId,
+    DateTimeOffset SettledAtUtc
+);

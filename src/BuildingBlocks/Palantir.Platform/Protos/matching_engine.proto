@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package palantir.matching.v1;
+option csharp_namespace = "Palantir.LocalEngineService.Grpc";
+
+service MatchingEngineGrpc {
+  rpc SubmitOrder (GrpcSubmitOrderRequest) returns (GrpcExecutionReport);
+  rpc CancelOrder (GrpcCancelOrderRequest) returns (GrpcCancelReport);
+  rpc GetOrderBook (GrpcGetOrderBookRequest) returns (GrpcOrderBookSnapshot);
+}
+
+message GrpcSubmitOrderRequest {
+  string order_id = 1;
+  string client_id = 2;
+  string symbol = 3;
+  int32 side = 4; // 1: Buy, 2: Sell
+  int32 type = 5; // 1: Market, 2: Limit, 3: StopLimit
+  string quantity = 6;
+  string price = 7;
+  int32 time_in_force = 8;
+}
+
+message GrpcExecutionReport {
+  string order_id = 1;
+  string status = 2; // Placed, Filled, PartiallyFilled, Rejected
+  string filled_quantity = 3;
+  string average_price = 4;
+  string trade_id = 5;
+  string message = 6;
+  int64 timestamp_utc_ticks = 7;
+}
+
+message GrpcCancelOrderRequest {
+  string order_id = 1;
+  string symbol = 2;
+  string reason = 3;
+}
+
+message GrpcCancelReport {
+  string order_id = 1;
+  bool is_cancelled = 2;
+  string message = 3;
+}
+
+message GrpcGetOrderBookRequest {
+  string symbol = 1;
+  int32 depth = 2;
+}
+
+message GrpcOrderBookSnapshot {
+  string symbol = 1;
+  repeated GrpcPriceLevel bids = 2;
+  repeated GrpcPriceLevel asks = 3;
+  int64 timestamp_utc_ticks = 4;
+}
+
+message GrpcPriceLevel {
+  string price = 1;
+  string quantity = 2;
+  int32 order_count = 3;
+}

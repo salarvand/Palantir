@@ -43,7 +43,7 @@ public class AuditEndpoints : IEndpoint
                 }
                 else
                 {
-                    q.MatchAll();
+                    q.MatchAll(_ => { });
                 }
             })
             .Sort(so => so.Field(f => f.TimestampUtc, new FieldSort { Order = SortOrder.Desc })),

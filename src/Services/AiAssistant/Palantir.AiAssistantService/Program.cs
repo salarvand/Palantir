@@ -57,6 +57,34 @@ builder.Services.AddHttpClient("portfolio", client =>
 
 // MCP Tools Executor
 builder.Services.AddScoped<IMcpToolExecutor, McpToolExecutor>();
+builder.Services.AddScoped<Palantir.AiAssistantService.Mcp.StandardMcpServer>();
+
+// Ollama Local AI & Embedding Wiring (Zero Azure)
+var ollamaEndpoint = builder.Configuration["Ollama__Endpoint"]
+    ?? builder.Configuration.GetConnectionString(AspireResourceNames.Ollama)
+    ?? "http://localhost:11434";
+
+builder.Services.AddHttpClient<Microsoft.Extensions.AI.IChatClient, Palantir.AiAssistantService.Ollama.OllamaChatClient>(client =>
+{
+    client.BaseAddress = new Uri(ollamaEndpoint);
+});
+
+builder.Services.AddHttpClient<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>, Palantir.AiAssistantService.Ollama.OllamaEmbeddingGenerator>(client =>
+{
+    client.BaseAddress = new Uri(ollamaEndpoint);
+});
+
+// Multi-Agent Ecosystem
+builder.Services.AddScoped<Palantir.AiAssistantService.Agents.TradeAnalysisAgent>();
+builder.Services.AddScoped<Palantir.AiAssistantService.Agents.RiskGuardAgent>();
+builder.Services.AddScoped<Palantir.AiAssistantService.Agents.TradeCopilotCoordinator>();
+
+// Governance & Presidio PII Redaction
+builder.Services.AddSingleton<Palantir.AiAssistantService.Governance.IPiiRedactor, Palantir.AiAssistantService.Governance.PresidioPiiRedactor>();
+builder.Services.AddSingleton<Palantir.AiAssistantService.Governance.AgentGovernanceManager>();
+
+// A2A Protocol Client
+builder.Services.AddHttpClient<Palantir.AiAssistantService.Protocols.IA2AClient, Palantir.AiAssistantService.Protocols.A2AClient>();
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
 

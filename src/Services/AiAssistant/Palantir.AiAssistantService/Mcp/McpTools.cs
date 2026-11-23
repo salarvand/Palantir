@@ -210,7 +210,7 @@ public class McpToolExecutor(
                 vector: vector,
                 limit: 5,
                 scoreThreshold: 0.70f,
-                withPayload: true,
+                payloadSelector: true,
                 cancellationToken: ct
             );
 
