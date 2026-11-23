@@ -102,8 +102,12 @@ var auditService = builder.AddProject<Projects.Palantir_AuditService>(AspireReso
 
 var aiAssistant = builder.AddProject<Projects.Palantir_AiAssistantService>(AspireResourceNames.AiAssistantService)
     .WithReference(redis)
-    .WithReference(qdrant.GetEndpoint("http"))
-    .WithEnvironment("Qdrant__Endpoint", qdrant.GetEndpoint("http"));
+    .WithReference(qdrant.GetEndpoint("grpc"))
+    .WithReference(omsService)
+    .WithReference(marketData)
+    .WithReference(riskService)
+    .WithReference(portfolioService)
+    .WithEnvironment("Qdrant__Endpoint", qdrant.GetEndpoint("grpc"));
 
 var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.Gateway)
     .WithReference(iamService)

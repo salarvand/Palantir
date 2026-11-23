@@ -24,6 +24,8 @@ public class OrderEndpoints : IEndpoint
             .RequireAuthorization(Permissions.AllowCancelOrder);
 
         group.MapGet("/client/{clientId:guid}", GetClientActiveOrdersAsync);
+
+        group.MapGet("/blotter", GetBlotterOrdersAsync);
     }
 
     private static async Task<IResult> SubmitOrderAsync(
@@ -69,5 +71,33 @@ public class OrderEndpoints : IEndpoint
         var session = grainFactory.GetGrain<IClientSessionGrain>(clientId.ToString("N"));
         var activeOrderIds = await session.GetActiveOrdersAsync();
         return Results.Ok(activeOrderIds);
+    }
+
+    private static async Task<IResult> GetBlotterOrdersAsync(
+        string? symbol,
+        Guid? clientId,
+        int limit,
+        IGrainFactory grainFactory,
+        CancellationToken ct)
+    {
+        var size = limit <= 0 ? 50 : Math.Min(limit, 200);
+        var orders = new List<OrderStateSnapshot>();
+
+        if (clientId.HasValue && clientId.Value != Guid.Empty)
+        {
+            var session = grainFactory.GetGrain<IClientSessionGrain>(clientId.Value.ToString("N"));
+            var activeOrderIds = await session.GetActiveOrdersAsync();
+            foreach (var orderId in activeOrderIds.Take(size))
+            {
+                var grain = grainFactory.GetGrain<IOrderGrain>(orderId);
+                var snapshot = await grain.GetSnapshotAsync();
+                if (string.IsNullOrWhiteSpace(symbol) || string.Equals(snapshot.Symbol, symbol, StringComparison.OrdinalIgnoreCase))
+                {
+                    orders.Add(snapshot);
+                }
+            }
+        }
+
+        return Results.Ok(orders);
     }
 }

@@ -1,4 +1,5 @@
-using System.Collections.Concurrent;
+using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.QueryDsl;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -10,21 +11,7 @@ namespace Palantir.AuditService.Endpoints;
 
 public class AuditEndpoints : IEndpoint
 {
-    private static readonly ConcurrentBag<RegulatoryAuditRecord> AuditLogStore =
-    [
-        new RegulatoryAuditRecord(
-            Guid.NewGuid(),
-            "OrderPlaced",
-            Guid.NewGuid(),
-            null,
-            Guid.NewGuid(),
-            "PAL/USD",
-            100.50m,
-            500m,
-            "{\"Side\":\"Buy\",\"Type\":\"Limit\"}",
-            DateTimeOffset.UtcNow.AddMinutes(-5)
-        )
-    ];
+    private const string IndexName = "audit-records-v1";
 
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
@@ -37,21 +24,63 @@ public class AuditEndpoints : IEndpoint
         group.MapPost("/logs", AppendLogAsync);
     }
 
-    private static IResult GetLogsAsync(string? symbol, int limit = 50)
+    private static async Task<IResult> GetLogsAsync(
+        string? symbol,
+        int limit,
+        ElasticsearchClient esClient,
+        CancellationToken ct)
     {
-        var query = AuditLogStore.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(symbol))
+        var size = limit <= 0 ? 50 : Math.Min(limit, 500);
+
+        var searchResponse = await esClient.SearchAsync<RegulatoryAuditRecord>(s => s
+            .Index(IndexName)
+            .Size(size)
+            .Query(q =>
+            {
+                if (!string.IsNullOrWhiteSpace(symbol))
+                {
+                    q.Match(m => m.Field(f => f.Symbol).Query(symbol.ToUpperInvariant()));
+                }
+                else
+                {
+                    q.MatchAll();
+                }
+            })
+            .Sort(so => so.Field(f => f.TimestampUtc, new FieldSort { Order = SortOrder.Desc })),
+            ct);
+
+        if (!searchResponse.IsValidResponse)
         {
-            query = query.Where(l => string.Equals(l.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
+            return Results.Ok(Array.Empty<RegulatoryAuditRecord>());
         }
 
-        var results = query.OrderByDescending(l => l.TimestampUtc).Take(limit).ToList();
-        return Results.Ok(results);
+        return Results.Ok(searchResponse.Documents.ToList());
     }
 
-    private static IResult AppendLogAsync(RegulatoryAuditRecord record)
+    private static async Task<IResult> AppendLogAsync(
+        RegulatoryAuditRecord record,
+        ElasticsearchClient esClient,
+        CancellationToken ct)
     {
-        AuditLogStore.Add(record);
-        return Results.Created($"/api/v1/audit/logs/{record.AuditId}", record);
+        var auditId = record.AuditId != Guid.Empty ? record.AuditId : Guid.NewGuid();
+        var adjustedRecord = record with
+        {
+            AuditId = auditId,
+            TimestampUtc = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc
+        };
+
+        var response = await esClient.IndexAsync(
+            adjustedRecord,
+            idx => idx.Index(IndexName).Id(auditId.ToString()),
+            ct);
+
+        if (!response.IsValidResponse)
+        {
+            return Results.Problem(
+                detail: response.ElasticsearchServerError?.Error.Reason ?? "Failed to index audit record into Elasticsearch.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        return Results.Created($"/api/v1/audit/logs/{auditId}", adjustedRecord);
     }
 }

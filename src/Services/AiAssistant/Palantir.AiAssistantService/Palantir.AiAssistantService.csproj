@@ -8,4 +8,8 @@
     <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Qdrant.Client" />
+  </ItemGroup>
 </Project>
