@@ -1,8 +1,0 @@
-{
-  "project_name": "Palantir",
-  "version": "1.0.0",
-  "governance": {
-    "standards_version": "1.0.0",
-    "features_dir": ".insight/features"
-  }
-}

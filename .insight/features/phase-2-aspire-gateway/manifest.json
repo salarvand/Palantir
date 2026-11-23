@@ -1,9 +1,0 @@
-{
-  "feature_id": "phase-2-aspire-gateway",
-  "spec_hash": "cdb31952a441356fe75d12a6936557fdc08eb31c5dab93ac7d8b4229ce7b80bc",
-  "plan_hash": "b6850a429750f48788025e356f2b73f8d3d1fad80b586d7f6aef041c6bd8e9e1",
-  "status": "approved",
-  "approved_by": "user",
-  "approved_at": "2026-11-22T07:17:21.984551+00:00",
-  "commit_sha": "fbd0b53b3a5e0b93dd5a6d803207c2e67fd2d9a5"
-}

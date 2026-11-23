@@ -1,0 +1,71 @@
+{
+  "name": "Palantir",
+  "version": "1.0.0",
+  "runtime": ".NET 10.0 (C# 14 preview)",
+  "domains": [
+    {
+      "name": "Aspire",
+      "path": "src/Aspire",
+      "projects": [
+        "Palantir.AppHost",
+        "Palantir.ServiceDefaults"
+      ],
+      "responsibilities": "Orchestrates polyglot containers (Postgres, Redis, RabbitMQ, Kafka, Keycloak, TimescaleDB, Elasticsearch, Qdrant, Ollama) and wires inter-service telemetry, resilience, and discovery."
+    },
+    {
+      "name": "BuildingBlocks",
+      "path": "src/BuildingBlocks",
+      "projects": [
+        "Palantir.Platform",
+        "Palantir.SharedKernel",
+        "Palantir.Constants",
+        "Palantir.Generators",
+        "Palantir.Generators.Abstractions"
+      ],
+      "responsibilities": "Reusable microservices chassis packaging CQRS pipelines, Wolverine durable Outbox/Inbox, Marten Event Store, FusionCache, Keycloak PKCE/Token Exchange, and domain base primitives."
+    },
+    {
+      "name": "Gateway",
+      "path": "src/Gateway",
+      "projects": [
+        "Palantir.Gateway"
+      ],
+      "responsibilities": "YARP reverse proxy edge routing with dynamic Aspire service discovery and JWT bearer authentication."
+    },
+    {
+      "name": "FlagshipExecutionSlice",
+      "path": "src/Services",
+      "projects": [
+        "Palantir.OmsService",
+        "Palantir.LocalEngineService",
+        "Palantir.SettlementService",
+        "Palantir.AiAssistantService"
+      ],
+      "responsibilities": "End-to-end showcase of all 24 enterprise capabilities: Vertical Slice Architecture, Marten Event Sourcing, Wolverine Outbox, gRPC matching, MassTransit compensation saga, and Ollama multi-agent AI."
+    },
+    {
+      "name": "SupportingServices",
+      "path": "src/Services",
+      "projects": [
+        "Palantir.IamService",
+        "Palantir.ExternalGatewayService",
+        "Palantir.MarketDataService",
+        "Palantir.RiskService",
+        "Palantir.PortfolioService",
+        "Palantir.AuditService"
+      ],
+      "responsibilities": "Keycloak admin user/permission management, external broker connectivity, SignalR market streams, margin checks, positions, and Elasticsearch compliance logging."
+    },
+    {
+      "name": "Clients",
+      "path": "src/Clients",
+      "projects": [
+        "shell",
+        "trading-desk",
+        "portfolio-mfe",
+        "admin-mfe"
+      ],
+      "responsibilities": "Webpack 5 Module Federation microfrontends with Keycloak PKCE, real-time trading terminals, and WCAG 2.1 AA accessibility."
+    }
+  ]
+}

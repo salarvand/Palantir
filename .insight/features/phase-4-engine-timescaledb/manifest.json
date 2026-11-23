@@ -1,9 +1,0 @@
-{
-  "feature_id": "phase-4-engine-timescaledb",
-  "spec_hash": "bc42a39d7e23218155c883020e333db377d9b4415e700501e116257ea604ff34",
-  "plan_hash": "9ab3bf4aad81074d5774c5887749e3873b12ebdd9bca4c049a4e766c49b0267c",
-  "status": "approved",
-  "approved_by": "user",
-  "approved_at": "2026-11-22T07:17:21.984551+00:00",
-  "commit_sha": "fbd0b53b3a5e0b93dd5a6d803207c2e67fd2d9a5"
-}

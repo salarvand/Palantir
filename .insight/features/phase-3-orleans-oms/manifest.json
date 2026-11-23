@@ -1,9 +1,0 @@
-{
-  "feature_id": "phase-3-orleans-oms",
-  "spec_hash": "80978193a86defa65b12ef3501ae5e6e20ca7085f2205b406ac94b174656cb04",
-  "plan_hash": "d2c34df2a9c3dd5664e05e112a43e618240703d27de98ca09c2695b9d52c63db",
-  "status": "approved",
-  "approved_by": "user",
-  "approved_at": "2026-11-22T07:17:21.984551+00:00",
-  "commit_sha": "fbd0b53b3a5e0b93dd5a6d803207c2e67fd2d9a5"
-}
