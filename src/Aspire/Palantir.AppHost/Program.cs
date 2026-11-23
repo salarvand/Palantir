@@ -21,11 +21,12 @@ var kafka = builder.AddKafka(AspireResourceNames.Kafka)
     .WithDataVolume();
 
 // Keycloak Container with Automated Realm Import
+var realmPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "../../../deploy/keycloak/palantir-realm.json"));
 var keycloak = builder.AddContainer(AspireResourceNames.Keycloak, "quay.io/keycloak/keycloak", "26.0")
     .WithHttpEndpoint(port: 8080, targetPort: 8080, name: "http")
     .WithEnvironment("KEYCLOAK_ADMIN", "admin")
     .WithEnvironment("KEYCLOAK_ADMIN_PASSWORD", "admin123")
-    .WithBindMount("../../deploy/keycloak/palantir-realm.json", "/opt/keycloak/data/import/palantir-realm.json")
+    .WithBindMount(realmPath, "/opt/keycloak/data/import/palantir-realm.json")
     .WithArgs("start-dev", "--import-realm");
 
 // Polyglot Persistence Containers
