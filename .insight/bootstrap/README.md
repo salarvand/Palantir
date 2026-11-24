@@ -9,7 +9,7 @@
 ## Top-Level Architecture Domains
 
 ### 1. Aspire Orchestration Layer
-* `src/Aspire/Palantir.AppHost`: Central Aspire orchestrator coordinating PostgreSQL, Redis, RabbitMQ, Kafka, Keycloak, TimescaleDB, Elasticsearch, Qdrant, Ollama, and 10 microservices.
+* `src/Aspire/Palantir.AppHost`: Central Aspire orchestrator coordinating PostgreSQL, Redis, RabbitMQ, Kafka, Keycloak, TimescaleDB, Meilisearch, Qdrant, Ollama, and 10 microservices.
 * `src/Aspire/Palantir.ServiceDefaults`: Shared resilience, OpenTelemetry metrics and tracing, health checks, and service discovery.
 
 ### 2. Microservices Chassis & Shared Building Blocks
@@ -30,7 +30,7 @@
 * `src/Services/MarketData/Palantir.MarketDataService`: SignalR market hubs streaming real-time Kafka ticks.
 * `src/Services/Risk/Palantir.RiskService`: Pre-trade margin calculations, position concentration checks, and risk limits.
 * `src/Services/Portfolio/Palantir.PortfolioService`: Ledger accounts, cash balances, reserved margin, and real-time positions.
-* `src/Services/Audit/Palantir.AuditService`: Regulatory compliance audit trail indexing to Elasticsearch.
+* `src/Services/Audit/Palantir.AuditService`: Regulatory compliance audit trail indexing to Meilisearch.
 * `src/Gateway/Palantir.Gateway`: YARP Reverse Proxy with dynamic service discovery and Keycloak bearer validation.
 
 ### 5. Client Microfrontends (Webpack 5 Module Federation)

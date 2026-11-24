@@ -1,6 +1,7 @@
-using Elastic.Clients.Elasticsearch;
 using MassTransit;
+using Meilisearch;
 using Palantir.AuditService.Domain;
+using Palantir.AuditService.Infrastructure;
 using Palantir.Constants;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
@@ -19,16 +20,17 @@ builder.Services.AddPalantirCaching(redisConnectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
 
-var esUrl = builder.Configuration.GetConnectionString(AspireResourceNames.Elasticsearch)
-            ?? builder.Configuration["Elasticsearch:Url"]
-            ?? builder.Configuration["Elasticsearch__Url"]
-            ?? "http://localhost:9200";
+var meiliUrl = builder.Configuration.GetConnectionString(AspireResourceNames.Meilisearch)
+               ?? builder.Configuration["Meilisearch:Url"]
+               ?? builder.Configuration["Meilisearch__Url"]
+               ?? "http://localhost:7700";
+var meiliApiKey = builder.Configuration["Meilisearch:ApiKey"]
+                  ?? builder.Configuration["Meilisearch__ApiKey"]
+                  ?? "palantir-master-key-dev-12345678";
 
-var esSettings = new ElasticsearchClientSettings(new Uri(esUrl))
-    .DefaultIndex("audit-records-v1");
-
-builder.Services.AddSingleton(new ElasticsearchClient(esSettings));
-builder.Services.AddHostedService<AuditIndexInitializer>();
+builder.Services.AddSingleton(new MeilisearchClient(meiliUrl, meiliApiKey));
+builder.Services.AddSingleton<IAuditLogRepository, MeilisearchAuditLogRepository>();
+builder.Services.AddHostedService<MeilisearchIndexInitializer>();
 
 builder.Services.AddMassTransit(x =>
 {
@@ -51,25 +53,3 @@ app.UsePalantirExceptionHandler();
 app.MapEndpoints();
 
 app.Run();
-
-public class AuditIndexInitializer(ElasticsearchClient esClient, ILogger<AuditIndexInitializer> logger) : IHostedService
-{
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var exists = await esClient.Indices.ExistsAsync("audit-records-v1", cancellationToken);
-            if (!exists.Exists)
-            {
-                await esClient.Indices.CreateAsync("audit-records-v1", cancellationToken);
-                logger.LogInformation("Elasticsearch index 'audit-records-v1' initialized successfully.");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Could not initialize Elasticsearch index 'audit-records-v1'. It may be created on first write.");
-        }
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-}

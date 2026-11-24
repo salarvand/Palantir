@@ -37,11 +37,11 @@ var timescale = builder.AddContainer(AspireResourceNames.Timescale, "timescale/t
     .WithEnvironment("POSTGRES_PASSWORD", "postgres")
     .WithVolume("timescaledb-data", "/var/lib/postgresql/data");
 
-var elasticsearch = builder.AddContainer(AspireResourceNames.Elasticsearch, "docker.elastic.co/elasticsearch/elasticsearch", "8.17.0")
-    .WithHttpEndpoint(port: 9200, targetPort: 9200, name: "http")
-    .WithEnvironment("discovery.type", "single-node")
-    .WithEnvironment("xpack.security.enabled", "false")
-    .WithVolume("elasticsearch-data", "/usr/share/elasticsearch/data");
+var meilisearch = builder.AddContainer(AspireResourceNames.Meilisearch, "getmeili/meilisearch", "v1.12")
+    .WithHttpEndpoint(port: 7700, targetPort: 7700, name: "http")
+    .WithEnvironment("MEILI_NO_ANALYTICS", "true")
+    .WithEnvironment("MEILI_MASTER_KEY", "palantir-master-key-dev-12345678")
+    .WithVolume("meilisearch-data", "/meili_data");
 
 var qdrant = builder.AddContainer(AspireResourceNames.Qdrant, "qdrant/qdrant", "latest")
     .WithHttpEndpoint(port: 6333, targetPort: 6333, name: "http")
@@ -108,8 +108,9 @@ var settlementService = builder.AddProject<Projects.Palantir_SettlementService>(
 var auditService = builder.AddProject<Projects.Palantir_AuditService>(AspireResourceNames.AuditService)
     .WithReference(redis)
     .WithReference(rabbitmq)
-    .WithReference(elasticsearch.GetEndpoint("http"))
-    .WithEnvironment("Elasticsearch__Url", elasticsearch.GetEndpoint("http"));
+    .WithReference(meilisearch.GetEndpoint("http"))
+    .WithEnvironment("Meilisearch__Url", meilisearch.GetEndpoint("http"))
+    .WithEnvironment("Meilisearch__ApiKey", "palantir-master-key-dev-12345678");
 
 var aiAssistant = builder.AddProject<Projects.Palantir_AiAssistantService>(AspireResourceNames.AiAssistantService)
     .WithReference(redis)

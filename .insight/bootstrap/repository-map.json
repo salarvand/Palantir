@@ -10,7 +10,7 @@
         "Palantir.AppHost",
         "Palantir.ServiceDefaults"
       ],
-      "responsibilities": "Orchestrates polyglot containers (Postgres, Redis, RabbitMQ, Kafka, Keycloak, TimescaleDB, Elasticsearch, Qdrant, Ollama) and wires inter-service telemetry, resilience, and discovery."
+      "responsibilities": "Orchestrates polyglot containers (Postgres, Redis, RabbitMQ, Kafka, Keycloak, TimescaleDB, Meilisearch, Qdrant, Ollama) and wires inter-service telemetry, resilience, and discovery."
     },
     {
       "name": "BuildingBlocks",
@@ -54,7 +54,7 @@
         "Palantir.PortfolioService",
         "Palantir.AuditService"
       ],
-      "responsibilities": "Keycloak admin user/permission management, external broker connectivity, SignalR market streams, margin checks, positions, and Elasticsearch compliance logging."
+      "responsibilities": "Keycloak admin user/permission management, external broker connectivity, SignalR market streams, margin checks, positions, and Meilisearch compliance logging."
     },
     {
       "name": "Clients",

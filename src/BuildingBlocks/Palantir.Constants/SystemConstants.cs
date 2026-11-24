@@ -9,7 +9,7 @@ public static class AspireResourceNames
     public const string RabbitMq = "rabbitmq";
     public const string Kafka = "kafka";
     public const string Keycloak = "keycloak";
-    public const string Elasticsearch = "elasticsearch";
+    public const string Meilisearch = "meilisearch";
     public const string Qdrant = "qdrant";
     public const string Ollama = "ollama";
 

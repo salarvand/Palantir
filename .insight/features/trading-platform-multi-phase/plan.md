@@ -172,7 +172,7 @@ All 24 enterprise capabilities are partitioned across 9 distinct implementation 
 
 ## 6. Architectural Invariants
 
-* **[ARCH-01]**: **Zero Azure Dependency**. All services and infrastructure run containerized under Aspire using Keycloak, Ollama, Postgres, Redis, RabbitMQ, Kafka, TimescaleDB, Elasticsearch, and Qdrant.
+* **[ARCH-01]**: **Zero Azure Dependency**. All services and infrastructure run containerized under Aspire using Keycloak, Ollama, Postgres, Redis, RabbitMQ, Kafka, TimescaleDB, Meilisearch, and Qdrant.
 * **[ARCH-02]**: **Microservices Chassis Encapsulation**. All cross-cutting building blocks reside strictly inside `Palantir.Platform`; individual microservices must never reimplement CQRS pipeline behaviors, outbox tables, or security handlers.
 * **[ARCH-03]**: **Domain Isolation & Purity**. `Palantir.SharedKernel` must have zero dependencies on infrastructure, persistence, web, or UI frameworks.
 * **[ARCH-04]**: **CQRS Handler Inversion**. Minimal API endpoints must delegate exclusively to MediatR commands and queries; direct `DbContext` manipulation inside endpoint handlers is strictly prohibited.

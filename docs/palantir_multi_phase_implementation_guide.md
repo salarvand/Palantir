@@ -56,7 +56,7 @@ flowchart TD
             Risk["Palantir.RiskService (Pre-Trade Margin Verification)"]
             Port["Palantir.PortfolioService (Ledger & Reserved Balances)"]
             Market["Palantir.MarketDataService (SignalR + Kafka Ticks)"]
-            Audit["Palantir.AuditService (Elasticsearch Regulatory Audit)"]
+            Audit["Palantir.AuditService (Meilisearch Regulatory Audit)"]
             ExtGW["Palantir.ExternalGatewayService (External Venues)"]
         end
 
@@ -66,7 +66,7 @@ flowchart TD
             RD[(Redis - Cache & PBAC)]
             RMQ[(RabbitMQ - Sagas & Commands)]
             KF[(Kafka - High-Throughput Ticks)]
-            ES_DB[(Elasticsearch - Compliance Logs)]
+            MEILI_DB[(Meilisearch - Compliance Logs)]
             QD[(Qdrant - Sentiment Vectors)]
             OLL[(Ollama - Local LLM & Embeddings)]
         end
@@ -391,7 +391,7 @@ Implement standard MCP Server conforming to the Model Context Protocol:
    - Maximum daily tool execution budget.
    - Prohibited execution commands (e.g., direct margin override).
 2. Presidio PII scrubbing redacting trader personal identity before model ingestion.
-3. Emit every prompt, tool execution, and response to `Palantir.AuditService` (Elasticsearch).
+3. Emit every prompt, tool execution, and response to `Palantir.AuditService` (Meilisearch).
 
 ---
 
@@ -463,7 +463,7 @@ src/Clients/
   - `UserManagementPanel`: Trader account creation, KYC tier assignment.
   - `PermissionMatrix`: Granular trading permission assignment (`AllowPlaceOrder`, etc.).
   - `SymbolConfigurator`: Defining base/quote currencies, tick sizes, and lot sizes.
-  - `ComplianceAuditViewer`: Searchable regulatory audit log grid querying Elasticsearch.
+  - `ComplianceAuditViewer`: Searchable regulatory audit log grid querying Meilisearch.
 
 ### Step 7.6: WCAG 2.1 AA Accessibility Standards
 - Ensure all components meet WCAG 2.1 Level AA:

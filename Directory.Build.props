@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
     <Deterministic>true</Deterministic>
     <NoWarn>$(NoWarn);NU1904;NU1608</NoWarn>
   </PropertyGroup>

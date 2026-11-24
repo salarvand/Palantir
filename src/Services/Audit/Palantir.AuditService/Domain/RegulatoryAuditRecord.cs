@@ -1,14 +1,16 @@
+using System.Text.Json.Serialization;
+
 namespace Palantir.AuditService.Domain;
 
 public record RegulatoryAuditRecord(
-    Guid AuditId,
-    string EventType, // OrderPlaced, PreTradeRiskApproved, TradeMatched, SettlementCompleted
-    Guid OrderId,
-    Guid? TradeId,
-    Guid ClientId,
-    string Symbol,
-    decimal Price,
-    decimal Quantity,
-    string PayloadJson,
-    DateTimeOffset TimestampUtc
+    [property: JsonPropertyName("auditId")] Guid AuditId,
+    [property: JsonPropertyName("eventType")] string EventType, // OrderPlaced, PreTradeRiskApproved, TradeMatched, SettlementCompleted
+    [property: JsonPropertyName("orderId")] Guid OrderId,
+    [property: JsonPropertyName("tradeId")] Guid? TradeId,
+    [property: JsonPropertyName("clientId")] Guid ClientId,
+    [property: JsonPropertyName("symbol")] string Symbol,
+    [property: JsonPropertyName("price")] decimal Price,
+    [property: JsonPropertyName("quantity")] decimal Quantity,
+    [property: JsonPropertyName("payloadJson")] string PayloadJson,
+    [property: JsonPropertyName("timestampUtc")] DateTimeOffset TimestampUtc
 );

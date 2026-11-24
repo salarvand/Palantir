@@ -12,6 +12,6 @@
   <ItemGroup>
     <PackageReference Include="MassTransit" />
     <PackageReference Include="MassTransit.RabbitMQ" />
-    <PackageReference Include="Elastic.Clients.Elasticsearch" />
+    <PackageReference Include="MeiliSearch" />
   </ItemGroup>
 </Project>

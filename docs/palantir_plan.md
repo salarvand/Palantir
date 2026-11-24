@@ -16,7 +16,7 @@ Key architectural alignments confirmed by user design directives:
 
 | Feature Area | Current Palantir Status | Gap vs Enterprise Target | Action in Implementation Plan |
 |---|---|---|---|
-| **Aspire Cloud-Native Hosting** | Partially Implemented (Postgres, Redis, RabbitMQ, Kafka, Keycloak, Timescale, Elasticsearch, Qdrant). | Missing Ollama container orchestration for local LLM & embeddings. | Add Ollama resource to Aspire AppHost with model pull hooks; wire connection strings. |
+| **Aspire Cloud-Native Hosting** | Partially Implemented (Postgres, Redis, RabbitMQ, Kafka, Keycloak, Timescale, Meilisearch, Qdrant). | Missing Ollama container orchestration for local LLM & embeddings. | Add Ollama resource to Aspire AppHost with model pull hooks; wire connection strings. |
 | **Microservices Chassis (`Palantir.Platform`)** | Contains basic caching, security, problem details, and partial endpoints. | Lacks CQRS pipelines, Marten event store setups, gRPC helpers, feature flags, and token exchange. | Expand `Palantir.Platform` into the unified building block chassis across all microservices. |
 | **Vertical Slice Architecture & CQRS** | Anemic / Direct Endpoint dispatching to Orleans grains or DbContext. | No pipeline behaviors (`ValidationBehavior`, `LoggingBehavior`, `ActivityBehavior`, `TransactionBehavior`). | Restructure OMS and LocalEngine into `Features/{Entity}/{Action}/` slices with dedicated Command/Query/Endpoint/Validator. |
 | **Domain-Driven Design (DDD)** | Basic `SharedKernel` with entity and Vogen value objects. | Aggregates lack encapsulated invariant rules, domain event streams, and write/read separation. | Implement rich aggregates (`Order`, `Trade`, `ExecutionReport`, `TradingAccount`) with explicit business invariants. |
@@ -31,7 +31,7 @@ Key architectural alignments confirmed by user design directives:
 | **Multi-Agent Workflows (Agent Framework)** | Single static endpoint invoking McpToolExecutor directly. | No multi-agent coordination, subagents, or actor framework. | Implement Microsoft Agent Framework orchestrating **Trade Analysis Agent** and **Risk Guard Agent**. |
 | **Model Context Protocol (MCP)** | Handcrafted JSON payload executor. | Not using standardized MCP protocol schema or MCP client abstractions. | Implement MCP Server and Client protocol handlers conforming to the open Model Context Protocol spec. |
 | **Agent Protocols (A2A, AG-UI, A2UI)** | Missing. | No agent-to-agent negotiation, UI generation protocol, or interactive card streams. | Build A2A client/server protocol, AG-UI interaction endpoints, and A2UI JSON-driven component definitions. |
-| **Policy-Based Agent Governance** | None. Agent executes arbitrary tool calls without guardrails. | Missing PII redaction, execution budgets, and YAML policy enforcement. | Add agent governance middleware, Presidio PII anonymizer, and audit logging to Elasticsearch. |
+| **Policy-Based Agent Governance** | None. Agent executes arbitrary tool calls without guardrails. | Missing PII redaction, execution budgets, and YAML policy enforcement. | Add agent governance middleware, Presidio PII anonymizer, and audit logging to Meilisearch. |
 | **CI/CD with GitHub Actions** | Basic backend and frontend workflows without test matrix. | Missing contract tests, arch tests, coverage thresholds, and security linting. | Comprehensive CI pipeline running ArchUnit, Pact tests, unit tests, and Playwright BDD tests. |
 | **OpenAPI, AsyncAPI & EventCatalog** | Basic Scalar integration; no AsyncAPI or EventCatalog. | Architecture and event schemas are undocumented. | Generate OpenAPI specs, author AsyncAPI definitions for Kafka/RabbitMQ events, and configure EventCatalog in `docs/`. |
 | **Modern Client Applications** | Single Webpack 5 module federation shell in `src/Clients/shell`. | Single monolithic app pretending to be MFE; remote apps (`tradingDesk`, `portfolio`, `admin`) are stubbed. | Implement fully functional Webpack 5 Module Federation remotes: Shell (`:3000`), TradingDesk (`:3001`), Portfolio (`:3002`), Admin (`:3003`) with WCAG 2.1 AA. |
@@ -45,7 +45,7 @@ Key architectural alignments confirmed by user design directives:
 > **Core Architectural Principles:**
 > 1. **Chassis Identity**: Reusable cross-cutting capabilities belong strictly inside `Palantir.Platform`.
 > 2. **Client Architecture**: Standardized on **Webpack 5 Module Federation** with independent microfrontends and shared React singletons.
-> 3. **Strict Zero Azure Dependency**: All cloud-native components run containerized on Aspire with Keycloak, Ollama, Postgres, Redis, RabbitMQ, Kafka, Timescale, Elasticsearch, and Qdrant.
+> 3. **Strict Zero Azure Dependency**: All cloud-native components run containerized on Aspire with Keycloak, Ollama, Postgres, Redis, RabbitMQ, Kafka, Timescale, Meilisearch, and Qdrant.
 > 4. **Flagship Slice**: **Order Lifecycle & Execution** is implemented end-to-end with zero mocked, fallback, or temporary data.
 > 5. **Execution Guardrail**: No automatic execution of `dotnet build` or `dotnet run` commands per user policy.
 
@@ -179,7 +179,7 @@ Refactor OMS and LocalEngine into cohesive vertical slices:
 - **Agent Governance & Auditing**:
   - Policy engine enforcing execution limits and tool whitelists.
   - Presidio PII anonymization.
-  - Regulatory audit logging to Elasticsearch in `Palantir.AuditService`.
+  - Regulatory audit logging to Meilisearch in `Palantir.AuditService`.
 
 ### Phase 6: Centralized Documentation (OpenAPI, AsyncAPI, EventCatalog)
 - **OpenAPI**: Expose Scalar UI and OpenAPI 3.1 endpoints across all REST services.
@@ -233,7 +233,7 @@ cd src/Clients/shell && npx playwright test
 ```
 
 ### Manual Verification
-1. Launch Aspire AppHost and verify all containers (Postgres, Redis, RabbitMQ, Kafka, Keycloak, Timescale, Elasticsearch, Qdrant, Ollama) show Healthy status in the Aspire Dashboard.
+1. Launch Aspire AppHost and verify all containers (Postgres, Redis, RabbitMQ, Kafka, Keycloak, Timescale, Meilisearch, Qdrant, Ollama) show Healthy status in the Aspire Dashboard.
 2. Log into the Trading Desk MFE Shell via Keycloak PKCE flow.
 3. Submit a Limit Buy order; verify instantaneous gRPC matching in LocalEngine, Marten event stream append, Wolverine outbox emission, and MassTransit settlement progression.
 4. Interact with the AI Trade Copilot; verify Ollama model inference, MCP tool invocation, and rendering of an interactive A2UI order proposal card.
