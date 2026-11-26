@@ -127,6 +127,7 @@ var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.
 
 // Frontend UIs Accessible via Aspire Dashboard:
 // 1. Webpack 5 Module Federation Remotes & Host Shell (:3000 - :3003)
+// Note: Only the first workspace app runs `npm install` to prevent concurrent workspace node_modules corruption.
 var tradingDeskMfe = builder.AddJavaScriptApp(AspireResourceNames.TradingDeskMfe, "../../Clients/trading-desk")
     .WithNpm()
     .WithHttpEndpoint(port: 3001, env: "PORT", isProxied: false)
@@ -136,23 +137,25 @@ var tradingDeskMfe = builder.AddJavaScriptApp(AspireResourceNames.TradingDeskMfe
     .WaitFor(gateway);
 
 var portfolioMfe = builder.AddJavaScriptApp(AspireResourceNames.PortfolioMfe, "../../Clients/portfolio-mfe")
-    .WithNpm()
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3002, env: "PORT", isProxied: false)
     .WithReference(gateway)
     .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
     .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway);
+    .WaitFor(gateway)
+    .WaitFor(tradingDeskMfe);
 
 var adminMfe = builder.AddJavaScriptApp(AspireResourceNames.AdminMfe, "../../Clients/admin-mfe")
-    .WithNpm()
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3003, env: "PORT", isProxied: false)
     .WithReference(gateway)
     .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
     .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway);
+    .WaitFor(gateway)
+    .WaitFor(tradingDeskMfe);
 
 var frontendShell = builder.AddJavaScriptApp(AspireResourceNames.FrontendShell, "../../Clients/shell")
-    .WithNpm()
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3000, env: "PORT", isProxied: false)
     .WithReference(gateway)
     .WithReference(tradingDeskMfe)
@@ -160,21 +163,23 @@ var frontendShell = builder.AddJavaScriptApp(AspireResourceNames.FrontendShell, 
     .WithReference(adminMfe)
     .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
     .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway);
+    .WaitFor(gateway)
+    .WaitFor(tradingDeskMfe);
 
 // 2. Next.js Multi-Zones: Storefront (:3100) & Backoffice (:3101)
 var backofficeZone = builder.AddJavaScriptApp(AspireResourceNames.BackofficeZone, "../../Clients/backoffice")
-    .WithNpm()
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3101, env: "PORT", isProxied: false)
     .WithReference(gateway)
     .WithReference(frontendShell)
     .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
     .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
     .WithEnvironment("MFE_SHELL_URL", frontendShell.GetEndpoint("http"))
-    .WaitFor(gateway);
+    .WaitFor(gateway)
+    .WaitFor(tradingDeskMfe);
 
 builder.AddJavaScriptApp(AspireResourceNames.StorefrontZone, "../../Clients/storefront")
-    .WithNpm()
+    .WithNpm(install: false)
     .WithHttpEndpoint(port: 3100, env: "PORT", isProxied: false)
     .WithReference(gateway)
     .WithReference(frontendShell)
@@ -183,6 +188,7 @@ builder.AddJavaScriptApp(AspireResourceNames.StorefrontZone, "../../Clients/stor
     .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
     .WithEnvironment("MFE_SHELL_URL", frontendShell.GetEndpoint("http"))
     .WithEnvironment("BACKOFFICE_URL", backofficeZone.GetEndpoint("http"))
-    .WaitFor(gateway);
+    .WaitFor(gateway)
+    .WaitFor(tradingDeskMfe);
 
 builder.Build().Run();

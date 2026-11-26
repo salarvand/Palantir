@@ -1,7 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach } from 'vitest';
 import StorefrontPage from '../app/page';
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('Storefront Multi-Zone & A2UI Tests', () => {
   it('renders banner, multi-zone navigation links, and main landmark', () => {
