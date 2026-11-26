@@ -2,6 +2,7 @@
   <PropertyGroup>
     <RootNamespace>Palantir.AiAssistantService</RootNamespace>
     <AssemblyName>Palantir.AiAssistantService</AssemblyName>
+    <UserSecretsId>9b2f4d8c-6e1a-4b37-8c05-3e7d9a1b2c44</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

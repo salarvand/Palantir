@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
+using Palantir.AiAssistantService.AiProvider;
 using Palantir.AiAssistantService.Mcp;
 using Palantir.AiAssistantService.Persistence;
 using Palantir.Constants;
@@ -55,19 +58,19 @@ builder.Services.AddHttpClient("portfolio", client =>
 builder.Services.AddScoped<IMcpToolExecutor, McpToolExecutor>();
 builder.Services.AddScoped<StandardMcpServer>();
 
-// Ollama Local AI & Embedding Wiring (Zero Azure)
-var ollamaEndpoint = builder.Configuration["Ollama__Endpoint"]
-    ?? builder.Configuration.GetConnectionString(AspireResourceNames.Ollama)
-    ?? "http://localhost:11434";
+// AI Provider Configuration (API Key loaded from User Secrets / Environment)
+builder.Services.Configure<AiProviderOptions>(builder.Configuration.GetSection(AiProviderOptions.SectionName));
 
-builder.Services.AddHttpClient<Microsoft.Extensions.AI.IChatClient, Palantir.AiAssistantService.Ollama.OllamaChatClient>(client =>
+builder.Services.AddHttpClient<IChatClient, ApiKeyChatClient>((sp, client) =>
 {
-    client.BaseAddress = new Uri(ollamaEndpoint);
+    var options = sp.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+    AiProviderHttpGuard.ConfigureClient(client, options);
 });
 
-builder.Services.AddHttpClient<Microsoft.Extensions.AI.IEmbeddingGenerator<string, Microsoft.Extensions.AI.Embedding<float>>, Palantir.AiAssistantService.Ollama.OllamaEmbeddingGenerator>(client =>
+builder.Services.AddHttpClient<IEmbeddingGenerator<string, Embedding<float>>, ApiKeyEmbeddingGenerator>((sp, client) =>
 {
-    client.BaseAddress = new Uri(ollamaEndpoint);
+    var options = sp.GetRequiredService<IOptions<AiProviderOptions>>().Value;
+    AiProviderHttpGuard.ConfigureClient(client, options);
 });
 
 // Multi-Agent Ecosystem

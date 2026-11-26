@@ -6,7 +6,6 @@ public static class AspireResourceNames
     public const string Postgres = "postgres";
     public const string RabbitMq = "rabbitmq";
     public const string Keycloak = "keycloak";
-    public const string Ollama = "ollama";
 
     // Databases
     public const string PalantirDb = "PalantirDb";

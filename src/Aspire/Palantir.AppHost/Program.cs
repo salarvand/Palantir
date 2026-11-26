@@ -24,11 +24,6 @@ var keycloak = builder.AddContainer(AspireResourceNames.Keycloak, "quay.io/keycl
     .WithBindMount(realmPath, "/opt/keycloak/data/import/palantir-realm.json")
     .WithArgs("start-dev", "--import-realm");
 
-// Ollama Container Registration (Zero Azure)
-var ollama = builder.AddContainer(AspireResourceNames.Ollama, "ollama/ollama", "latest")
-    .WithHttpEndpoint(port: 11434, targetPort: 11434, name: "http")
-    .WithVolume("ollama-models", "/root/.ollama");
-
 // Microservices & Edge Projects
 var iamService = builder.AddProject<Projects.Palantir_IamService>(AspireResourceNames.IamService)
     .WithReference(palantirDb)
@@ -90,13 +85,20 @@ var auditService = builder.AddProject<Projects.Palantir_AuditService>(AspireReso
 
 var aiAssistant = builder.AddProject<Projects.Palantir_AiAssistantService>(AspireResourceNames.AiAssistantService)
     .WithReference(palantirDb)
-    .WithReference(ollama.GetEndpoint("http"))
     .WithReference(omsService)
     .WithReference(marketData)
     .WithReference(riskService)
     .WithReference(portfolioService)
-    .WithEnvironment("Ollama__Endpoint", ollama.GetEndpoint("http"))
     .WaitFor(palantirDb);
+
+foreach (var key in new[] { "ApiKey", "Endpoint", "ChatModel", "EmbeddingModel" })
+{
+    var value = builder.Configuration[$"AiProvider:{key}"];
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        aiAssistant.WithEnvironment($"AiProvider__{key}", value);
+    }
+}
 
 var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.Gateway)
     .WithReference(iamService)
