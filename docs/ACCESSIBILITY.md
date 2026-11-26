@@ -1,7 +1,7 @@
 # Palantir Accessibility Statement & Conformance Report
 
 **Conformance Target**: Web Content Accessibility Guidelines (WCAG) 2.1 Level AA  
-**Evaluation Scope**: Webpack 5 Module Federation Microfrontends (Host Shell `:3000`, Trading Desk Remote `:3001`, Portfolio Remote `:3002`, Admin Remote `:3003`).
+**Evaluation Scope**: Next.js Multi-Zones (`storefront` `:3100`, `backoffice` `:3101`) and Webpack 5 Module Federation Microfrontends (`shell` `:3000`, `trading-desk` `:3001`, `portfolio-mfe` `:3002`, `admin-mfe` `:3003`).
 
 ---
 
@@ -32,9 +32,9 @@ Palantir Trading Platform microfrontends are designed and implemented to provide
 
 ## 3. Automated & Manual Verification Procedure
 
-Automated accessibility testing is executed in CI via `@axe-core/react` and Vitest:
+Automated accessibility testing is executed in CI via Vitest + Testing Library and Playwright BDD (`@axe-core/playwright`):
 ```bash
-cd src/Clients/shell
+cd src/Clients
 npm test
+npm run test:e2e
 ```
-Result: **0 violations detected** across axe-core 4.x rule suite.

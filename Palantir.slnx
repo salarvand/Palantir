@@ -14,11 +14,9 @@
     <Project Path="src/Gateway/Palantir.Gateway/Palantir.Gateway.csproj" />
   </Folder>
   <Folder Name="/src/Services/Iam/">
-    <Project Path="src/Services/Iam/Palantir.Iam.Contracts/Palantir.Iam.Contracts.csproj" />
     <Project Path="src/Services/Iam/Palantir.IamService/Palantir.IamService.csproj" />
   </Folder>
   <Folder Name="/src/Services/Oms/">
-    <Project Path="src/Services/Oms/Palantir.Oms.Contracts/Palantir.Oms.Contracts.csproj" />
     <Project Path="src/Services/Oms/Palantir.OmsService/Palantir.OmsService.csproj" />
   </Folder>
   <Folder Name="/src/Services/Execution/">
@@ -49,7 +47,15 @@
     <Project Path="tests/Palantir.Testing.Shared/Palantir.Testing.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/Services/">
+    <Project Path="tests/Services/Palantir.AiAssistantService.UnitTests/Palantir.AiAssistantService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.AuditService.UnitTests/Palantir.AuditService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.ExternalGatewayService.UnitTests/Palantir.ExternalGatewayService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.IamService.UnitTests/Palantir.IamService.UnitTests.csproj" />
     <Project Path="tests/Services/Palantir.LocalEngineService.UnitTests/Palantir.LocalEngineService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.MarketDataService.UnitTests/Palantir.MarketDataService.UnitTests.csproj" />
     <Project Path="tests/Services/Palantir.OmsService.UnitTests/Palantir.OmsService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.PortfolioService.UnitTests/Palantir.PortfolioService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.RiskService.UnitTests/Palantir.RiskService.UnitTests.csproj" />
+    <Project Path="tests/Services/Palantir.SettlementService.UnitTests/Palantir.SettlementService.UnitTests.csproj" />
   </Folder>
 </Solution>

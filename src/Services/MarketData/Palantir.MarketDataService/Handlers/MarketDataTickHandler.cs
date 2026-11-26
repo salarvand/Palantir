@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Palantir.Constants;
 using Palantir.MarketDataService.Hubs;
-using Palantir.Oms.Contracts;
+using Palantir.MarketDataService.IntegrationEvents.Events;
 using Palantir.Platform.Caching;
 
 namespace Palantir.MarketDataService.Handlers;

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
+using Wolverine.ErrorHandling;
 using Wolverine.Postgresql;
 using Wolverine.RabbitMQ;
 
@@ -32,6 +33,12 @@ public static class WolverineExtensions
             opts.Policies.UseDurableLocalQueues();
             opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
             opts.Policies.UseDurableInboxOnAllListeners();
+
+            opts.Policies.OnException<TimeoutException>()
+                .RetryWithCooldown(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(2));
+
+            opts.Policies.OnAnyException()
+                .MoveToErrorQueue();
 
             configure?.Invoke(opts);
         });

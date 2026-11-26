@@ -69,6 +69,13 @@ public static class OrleansSchemaInitializer
 
                 await using var patchCmd = new NpgsqlCommand(MissingQueryKeysPatchSql, conn, tx);
                 await patchCmd.ExecuteNonQueryAsync(ct);
+
+                await using var pruneCmd = new NpgsqlCommand(
+                    "DELETE FROM OrleansMembershipTable WHERE IAmAliveTime < NOW() - INTERVAL '1 minute';",
+                    conn,
+                    tx);
+                await pruneCmd.ExecuteNonQueryAsync(ct);
+
                 await tx.CommitAsync(ct);
                 return;
             }

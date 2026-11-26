@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Palantir.Oms.Contracts;
+using Palantir.SettlementService.IntegrationEvents.Events;
 using Wolverine;
 
 namespace Palantir.SettlementService.Sagas;

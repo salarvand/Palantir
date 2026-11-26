@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Orleans;
 using Orleans.Runtime;
-using Palantir.Oms.Contracts;
 using Palantir.OmsService.Execution;
+using Palantir.OmsService.IntegrationEvents.Events;
 using Palantir.OmsService.Repositories;
 using Palantir.SharedKernel;
 using Wolverine;

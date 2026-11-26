@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend & Docs CI
 
 on:
   push:
@@ -7,21 +7,27 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-build:
+  clients-and-catalog:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: src/Clients/shell
+        working-directory: src/Clients
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install dependencies
+      - name: Install client workspace dependencies
         run: npm ci || npm install
 
-      - name: Build Module Federation Shell
+      - name: Run frontend unit and WCAG component tests
+        run: npm run test
+
+      - name: Build Module Federation MFEs and Next.js Multi-Zones
         run: npm run build
+
+      - name: Install Playwright browsers for BDD E2E
+        run: npx playwright install --with-deps chromium

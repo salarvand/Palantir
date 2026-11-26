@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -7,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using Scalar.AspNetCore;
+using Palantir.ServiceDefaults.ApiSpecification.OpenApi;
 
 namespace Palantir.ServiceDefaults;
 
@@ -15,10 +16,15 @@ public static class Extensions
 {
     public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
     {
+        if (builder is WebApplicationBuilder webBuilder)
+        {
+            webBuilder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+        }
+
         builder.ConfigureOpenTelemetry();
         builder.AddDefaultHealthChecks();
         builder.Services.AddServiceDiscovery();
-        builder.Services.AddOpenApi();
+        builder.Services.AddDefaultOpenApi();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
@@ -86,12 +92,7 @@ public static class Extensions
             Predicate = r => r.Tags.Contains("live")
         });
 
-        app.MapOpenApi();
-        app.MapScalarApiReference(options =>
-        {
-            options.WithTitle("Palantir Cloud-Native Platform API")
-                   .WithTheme(ScalarTheme.Moon);
-        });
+        app.UseDefaultOpenApi();
 
         return app;
     }

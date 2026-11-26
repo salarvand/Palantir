@@ -9,13 +9,26 @@
     <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.SharedKernel\Palantir.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Constants\Palantir.Constants.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Services\Oms\Palantir.OmsService\Palantir.OmsService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Iam\Palantir.IamService\Palantir.IamService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Execution\Palantir.LocalEngineService\Palantir.LocalEngineService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Execution\Palantir.ExternalGatewayService\Palantir.ExternalGatewayService.csproj" />
+    <ProjectReference Include="..\..\src\Services\MarketData\Palantir.MarketDataService\Palantir.MarketDataService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Risk\Palantir.RiskService\Palantir.RiskService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Portfolio\Palantir.PortfolioService\Palantir.PortfolioService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Settlement\Palantir.SettlementService\Palantir.SettlementService.csproj" />
+    <ProjectReference Include="..\..\src\Services\Audit\Palantir.AuditService\Palantir.AuditService.csproj" />
+    <ProjectReference Include="..\..\src\Services\AiAssistant\Palantir.AiAssistantService\Palantir.AiAssistantService.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnit" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Palantir.Oms.Contracts;
 using Palantir.RiskService.Engine;
+using Palantir.RiskService.IntegrationEvents.Events;
 using Palantir.SharedKernel;
 using Wolverine;
 

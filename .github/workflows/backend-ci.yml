@@ -26,8 +26,8 @@ jobs:
       - name: Run Architecture Governance Tests
         run: dotnet test tests/Palantir.ArchTests/Palantir.ArchTests.csproj --no-build --configuration Release
 
-      - name: Run Matching Engine Unit Tests
-        run: dotnet test tests/Services/Palantir.LocalEngineService.UnitTests/Palantir.LocalEngineService.UnitTests.csproj --no-build --configuration Release
+      - name: Run Pact Contract Tests
+        run: dotnet test tests/Palantir.ContractTests/Palantir.ContractTests.csproj --no-build --configuration Release
 
-      - name: Run OMS Unit Tests
-        run: dotnet test tests/Services/Palantir.OmsService.UnitTests/Palantir.OmsService.UnitTests.csproj --no-build --configuration Release
+      - name: Run All Service Unit Tests
+        run: dotnet test Palantir.slnx --no-build --configuration Release --filter "FullyQualifiedName~UnitTests"

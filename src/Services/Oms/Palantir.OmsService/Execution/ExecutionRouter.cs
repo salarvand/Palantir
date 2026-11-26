@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Palantir.LocalEngineService.Grpc;
-using Palantir.Oms.Contracts;
+using Palantir.OmsService.Grains;
 
 namespace Palantir.OmsService.Execution;
 

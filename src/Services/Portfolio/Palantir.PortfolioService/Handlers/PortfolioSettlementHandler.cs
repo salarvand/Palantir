@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Palantir.Oms.Contracts;
 using Palantir.PortfolioService.Infrastructure;
+using Palantir.PortfolioService.IntegrationEvents.Events;
 
 namespace Palantir.PortfolioService.Handlers;
 

@@ -1,0 +1,26 @@
+version: "1.0"
+name: "palantir-ai-agents-governance"
+description: "Policy-based access control, tool allowlists, and prompt-injection guardrails for Palantir multi-agent workflows."
+default_action: deny
+max_daily_executions: 50000
+allowed_agents:
+  - id: "trade-copilot-coordinator"
+    allowed_tools:
+      - "get_order_blotter"
+      - "get_market_quote"
+      - "check_risk_exposure"
+      - "get_market_sentiment"
+      - "render_a2ui"
+  - id: "trade-analysis-agent"
+    allowed_tools:
+      - "get_market_quote"
+      - "get_market_sentiment"
+      - "get_order_blotter"
+  - id: "risk-guard-agent"
+    allowed_tools:
+      - "check_risk_exposure"
+blocked_prompt_patterns:
+  - "bypass\\s+risk"
+  - "ignore\\s+previous\\s+instructions"
+  - "override\\s+margin\\s+limit"
+  - "exfiltrate"

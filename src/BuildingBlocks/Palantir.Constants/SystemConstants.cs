@@ -23,8 +23,19 @@ public static class AspireResourceNames
     public const string AuditService = "audit-service";
     public const string AiAssistantService = "ai-assistant-service";
 
-    // Frontend
+    // Frontend Microfrontends & Next.js Multi-Zones
     public const string FrontendShell = "frontend-shell";
+    public const string TradingDeskMfe = "trading-desk-mfe";
+    public const string PortfolioMfe = "portfolio-mfe";
+    public const string AdminMfe = "admin-mfe";
+    public const string StorefrontZone = "storefront-zone";
+    public const string BackofficeZone = "backoffice-zone";
+}
+
+public static class ApiConstants
+{
+    public const string RequestIdHeader = "x-request-id";
+    public const string CorrelationIdHeader = "x-correlation-id";
 }
 
 public static class MessagingConstants

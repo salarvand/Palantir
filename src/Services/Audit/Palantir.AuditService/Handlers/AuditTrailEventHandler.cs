@@ -1,6 +1,6 @@
 using Palantir.AuditService.Domain;
 using Palantir.AuditService.Infrastructure;
-using Palantir.Oms.Contracts;
+using Palantir.AuditService.IntegrationEvents.Events;
 
 namespace Palantir.AuditService.Handlers;
 

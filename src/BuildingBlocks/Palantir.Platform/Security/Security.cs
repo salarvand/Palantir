@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -6,7 +7,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Palantir.Constants;
@@ -72,7 +76,7 @@ public class KeycloakTokenExchangeService : ITokenExchangeService
             ["audience"] = targetAudience
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/protocol/openid-connect/token")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/realms/palantir/protocol/openid-connect/token")
         {
             Content = new FormUrlEncodedContent(parameters)
         };
@@ -91,6 +95,47 @@ public class KeycloakTokenExchangeService : ITokenExchangeService
         _logger.LogDebug("Exchanged and cached token for audience {Audience}.", targetAudience);
 
         return tokenResponse.AccessToken;
+    }
+}
+
+public sealed class TokenExchangeDelegatingHandler : DelegatingHandler
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ITokenExchangeService _tokenExchangeService;
+    private readonly string _targetAudience;
+
+    public TokenExchangeDelegatingHandler(
+        IHttpContextAccessor httpContextAccessor,
+        ITokenExchangeService tokenExchangeService,
+        string targetAudience)
+    {
+        _httpContextAccessor = httpContextAccessor;
+        _tokenExchangeService = tokenExchangeService;
+        _targetAudience = targetAudience;
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var authHeader = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var incomingToken = authHeader["Bearer ".Length..].Trim();
+            if (!string.IsNullOrEmpty(incomingToken))
+            {
+                try
+                {
+                    var exchanged = await _tokenExchangeService.ExchangeTokenAsync(incomingToken, _targetAudience, cancellationToken);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", exchanged);
+                }
+                catch
+                {
+                    // Fallback to forwarding the validated subject token if Keycloak token exchange is not yet provisioned
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", incomingToken);
+                }
+            }
+        }
+
+        return await base.SendAsync(request, cancellationToken);
     }
 }
 
@@ -194,8 +239,9 @@ public static class SecurityExtensions
 {
     public static IServiceCollection AddPalantirSecurity(this IServiceCollection services, string? keycloakBaseUrl = null)
     {
-        services.AddSingleton<IPermissionTokenManager, PostgresPermissionTokenManager>();
-        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddHttpContextAccessor();
+        services.TryAddSingleton<IPermissionTokenManager, PostgresPermissionTokenManager>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAuthorizationHandler, PermissionAuthorizationHandler>());
 
         if (!string.IsNullOrWhiteSpace(keycloakBaseUrl))
         {
@@ -222,6 +268,18 @@ public static class SecurityExtensions
 
     public static IServiceCollection AddPalantirJwtAuthentication(
         this IServiceCollection services,
+        IConfiguration configuration,
+        string realm = "palantir")
+    {
+        var keycloakUrl = configuration["Keycloak:Url"]
+                          ?? configuration["services:keycloak:http:0"]
+                          ?? "http://localhost:8080";
+
+        return services.AddPalantirJwtAuthentication(keycloakUrl, realm);
+    }
+
+    public static IServiceCollection AddPalantirJwtAuthentication(
+        this IServiceCollection services,
         string keycloakUrl,
         string realm = "palantir")
     {
@@ -243,5 +301,13 @@ public static class SecurityExtensions
             });
 
         return services;
+    }
+
+    public static IHttpClientBuilder AddTokenExchangeHandler(this IHttpClientBuilder builder, string targetAudience)
+    {
+        return builder.AddHttpMessageHandler(sp => new TokenExchangeDelegatingHandler(
+            sp.GetRequiredService<IHttpContextAccessor>(),
+            sp.GetRequiredService<ITokenExchangeService>(),
+            targetAudience));
     }
 }

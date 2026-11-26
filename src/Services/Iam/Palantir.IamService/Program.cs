@@ -1,19 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using Palantir.Constants;
-using Palantir.Iam.Contracts;
 using Palantir.IamService.Infrastructure;
-using Palantir.Platform.Caching;
-using Palantir.Platform.Endpoints;
-using Palantir.Platform.Exceptions;
+using Palantir.IamService.IntegrationEvents.Events;
+using Palantir.Platform;
 using Palantir.Platform.Messaging;
 using Palantir.Platform.Persistence;
-using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
+using Palantir.ServiceDefaults.ApiSpecification.AsyncApi;
 using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddDefaultAsyncApi("Palantir IAM Service", "1.0.0", typeof(Program));
+builder.AddPalantirChassis(typeof(Program).Assembly);
 
 var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
                        ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres;SSL Mode=Disable;Include Error Detail=true";
@@ -28,9 +28,6 @@ builder.Services.AddDbContext<IamDbContext>(options =>
     });
 });
 
-builder.Services.AddPalantirCaching(connectionString);
-builder.Services.AddPalantirSecurity();
-builder.Services.AddPalantirProblemDetails();
 builder.Services.AddHttpClient<IKeycloakAdminClient, KeycloakAdminClient>();
 
 builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
@@ -47,17 +44,15 @@ builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
     });
 }, useEntityFrameworkCore: true);
 
-builder.Services.AddEndpoints(typeof(Program).Assembly);
-
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
-app.UsePalantirExceptionHandler();
+app.UseDefaultAsyncApi();
 
 await app.Services.EnsurePostgresSchemaCreatedAsync<IamDbContext>(
     "iam",
     app.Services.GetRequiredService<ILogger<Program>>());
 
-app.MapEndpoints();
+app.UsePalantirChassis();
 
 app.Run();

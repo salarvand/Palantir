@@ -1,0 +1,15 @@
+{
+  "name": "palantir-eventcatalog",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "eventcatalog dev",
+    "build": "eventcatalog build",
+    "generate": "eventcatalog generate"
+  },
+  "dependencies": {
+    "@eventcatalog/core": "^2.30.0",
+    "@eventcatalog/generator-asyncapi": "^2.5.0",
+    "@eventcatalog/generator-openapi": "^2.5.0"
+  }
+}

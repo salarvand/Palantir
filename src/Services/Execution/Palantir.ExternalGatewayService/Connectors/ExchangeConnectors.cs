@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
-using Palantir.Oms.Contracts;
+using Palantir.ExternalGatewayService.Features.ExternalOrders.Route;
 using Palantir.SharedKernel;
 
 namespace Palantir.ExternalGatewayService.Connectors;
@@ -17,7 +17,7 @@ public record ExternalExecutionReport(
 public interface IExchangeVenueConnector
 {
     string VenueName { get; }
-    Task<ExternalExecutionReport> SubmitOrderAsync(SubmitOrderRequest order, CancellationToken ct = default);
+    Task<ExternalExecutionReport> SubmitOrderAsync(ExternalOrderRequest order, CancellationToken ct = default);
     Task<bool> CancelOrderAsync(string externalOrderId, CancellationToken ct = default);
 }
 
@@ -34,7 +34,7 @@ public class RestWebSocketVenueConnector : IExchangeVenueConnector
         _logger = logger;
     }
 
-    public async Task<ExternalExecutionReport> SubmitOrderAsync(SubmitOrderRequest order, CancellationToken ct = default)
+    public async Task<ExternalExecutionReport> SubmitOrderAsync(ExternalOrderRequest order, CancellationToken ct = default)
     {
         _logger.LogInformation("Routing order {OrderId} for {Symbol} to venue {Venue}", order.OrderId, order.Symbol, VenueName);
 
@@ -64,7 +64,7 @@ public class RestWebSocketVenueConnector : IExchangeVenueConnector
         return response.IsSuccessStatusCode;
     }
 
-    private static ExternalExecutionReport CreateDefaultReport(SubmitOrderRequest order) =>
+    private static ExternalExecutionReport CreateDefaultReport(ExternalOrderRequest order) =>
         new(
             Guid.NewGuid().ToString("N"),
             order.Symbol,

@@ -1,4 +1,3 @@
-using Palantir.Oms.Contracts;
 using Palantir.OmsService.Grains;
 using Palantir.SharedKernel;
 using Shouldly;

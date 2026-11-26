@@ -1,5 +1,5 @@
+using Palantir.LocalEngineService.IntegrationEvents.Events;
 using Palantir.LocalEngineService.Persistence;
-using Palantir.Oms.Contracts;
 using Palantir.SharedKernel;
 using Wolverine;
 

@@ -1,5 +1,5 @@
 using Palantir.LocalEngineService.Grpc;
-using Palantir.Oms.Contracts;
+using Palantir.OmsService.IntegrationEvents.Events;
 using Shouldly;
 using Xunit;
 

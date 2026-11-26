@@ -1,10 +1,13 @@
+using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Palantir.Platform.Caching;
 
@@ -15,7 +18,7 @@ public interface IKeyValueStore
     Task RemoveAsync(string key, CancellationToken ct = default);
 }
 
-public sealed class PostgresKeyValueStore : IKeyValueStore, IAsyncDisposable
+public sealed class PostgresKeyValueStore : IKeyValueStore, IDistributedCache, IAsyncDisposable
 {
     private readonly NpgsqlDataSource _dataSource;
     private readonly ILogger<PostgresKeyValueStore> _logger;
@@ -73,6 +76,29 @@ public sealed class PostgresKeyValueStore : IKeyValueStore, IAsyncDisposable
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    // IDistributedCache bridge so FusionCache shares the PostgreSQL L2 cache cleanly
+    byte[]? IDistributedCache.Get(string key) =>
+        GetAsync(key).GetAwaiter().GetResult() is { } val ? Encoding.UTF8.GetBytes(val) : null;
+
+    async Task<byte[]?> IDistributedCache.GetAsync(string key, CancellationToken token) =>
+        await GetAsync(key, token) is { } val ? Encoding.UTF8.GetBytes(val) : null;
+
+    void IDistributedCache.Set(string key, byte[] value, DistributedCacheEntryOptions options) =>
+        SetAsync(key, Encoding.UTF8.GetString(value), ResolveTtl(options)).GetAwaiter().GetResult();
+
+    Task IDistributedCache.SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token) =>
+        SetAsync(key, Encoding.UTF8.GetString(value), ResolveTtl(options), token);
+
+    void IDistributedCache.Refresh(string key) { }
+    Task IDistributedCache.RefreshAsync(string key, CancellationToken token) => Task.CompletedTask;
+    void IDistributedCache.Remove(string key) => RemoveAsync(key).GetAwaiter().GetResult();
+    Task IDistributedCache.RemoveAsync(string key, CancellationToken token) => RemoveAsync(key, token);
+
+    private static TimeSpan ResolveTtl(DistributedCacheEntryOptions options) =>
+        options.AbsoluteExpirationRelativeToNow
+        ?? options.SlidingExpiration
+        ?? (options.AbsoluteExpiration.HasValue ? options.AbsoluteExpiration.Value - DateTimeOffset.UtcNow : TimeSpan.FromMinutes(5));
+
     private async Task EnsureTableExistsAsync(CancellationToken ct)
     {
         if (_initialized) return;
@@ -112,37 +138,19 @@ public sealed class PostgresKeyValueStore : IKeyValueStore, IAsyncDisposable
     }
 }
 
-public sealed class FusionCacheSystemTextJsonSerializer : IFusionCacheSerializer
-{
-    private readonly JsonSerializerOptions _options;
-
-    public FusionCacheSystemTextJsonSerializer(JsonSerializerOptions? options = null)
-    {
-        _options = options ?? new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        };
-    }
-
-    public byte[] Serialize<T>(T? obj) => JsonSerializer.SerializeToUtf8Bytes(obj, _options);
-
-    public T? Deserialize<T>(byte[] data) => JsonSerializer.Deserialize<T>(data, _options);
-
-    public ValueTask<byte[]> SerializeAsync<T>(T? obj, CancellationToken token = default) =>
-        ValueTask.FromResult(Serialize(obj));
-
-    public ValueTask<T?> DeserializeAsync<T>(byte[] data, CancellationToken token = default) =>
-        ValueTask.FromResult(Deserialize<T>(data));
-}
-
 public static class CachingExtensions
 {
     public static IServiceCollection AddPalantirCaching(this IServiceCollection services, string postgresConnectionString)
     {
-        services.TryAddSingleton<IKeyValueStore>(sp =>
+        services.TryAddSingleton(sp =>
             new PostgresKeyValueStore(postgresConnectionString, sp.GetRequiredService<ILogger<PostgresKeyValueStore>>()));
+        services.TryAddSingleton<IKeyValueStore>(sp => sp.GetRequiredService<PostgresKeyValueStore>());
+        services.TryAddSingleton<IDistributedCache>(sp => sp.GetRequiredService<PostgresKeyValueStore>());
 
-        var serializer = new FusionCacheSystemTextJsonSerializer();
+        var serializer = new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
         services.TryAddSingleton<IFusionCacheSerializer>(serializer);
 
         services.AddFusionCache()
@@ -156,7 +164,8 @@ public static class CachingExtensions
                     FailSafeThrottleDuration = TimeSpan.FromSeconds(30)
                 };
             })
-            .WithSerializer(serializer);
+            .WithSerializer(serializer)
+            .WithRegisteredDistributedCache();
 
         return services;
     }

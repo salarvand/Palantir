@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <IsAspireSharedProject>true</IsAspireSharedProject>
     <RootNamespace>Palantir.ServiceDefaults</RootNamespace>
     <AssemblyName>Palantir.ServiceDefaults</AssemblyName>
   </PropertyGroup>
@@ -9,6 +10,8 @@
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Saunter" />
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />

@@ -7,7 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
-    <ProjectReference Include="..\Palantir.Iam.Contracts\Palantir.Iam.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

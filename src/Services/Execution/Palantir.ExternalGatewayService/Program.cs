@@ -1,24 +1,20 @@
 using Palantir.Constants;
 using Palantir.ExternalGatewayService.Connectors;
-using Palantir.Platform.Caching;
-using Palantir.Platform.Endpoints;
-using Palantir.Platform.Exceptions;
+using Palantir.Platform;
 using Palantir.Platform.Messaging;
-using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
+using Palantir.ServiceDefaults.ApiSpecification.AsyncApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddDefaultAsyncApi("Palantir External Gateway Service", "1.0.0", typeof(Program));
+builder.AddPalantirChassis(typeof(Program).Assembly);
 
 var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
                        ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
 var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
                  ?? "amqp://guest:guest@localhost:5672";
-
-builder.Services.AddPalantirCaching(connectionString);
-builder.Services.AddPalantirSecurity();
-builder.Services.AddPalantirProblemDetails();
 
 builder.Services.AddHttpClient<IExchangeVenueConnector, RestWebSocketVenueConnector>(client =>
 {
@@ -28,12 +24,10 @@ builder.Services.AddHttpClient<IExchangeVenueConnector, RestWebSocketVenueConnec
 
 builder.Host.AddPalantirMessaging(connectionString, rabbitHost);
 
-builder.Services.AddEndpoints(typeof(Program).Assembly);
-
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
-app.UsePalantirExceptionHandler();
-app.MapEndpoints();
+app.UseDefaultAsyncApi();
+app.UsePalantirChassis();
 
 app.Run();
