@@ -1,22 +1,23 @@
 using System.Data.Common;
 using Marten.Events.Projections;
-using MassTransit;
 using Npgsql;
 using Orleans.Hosting;
 using Palantir.Constants;
 using Palantir.LocalEngineService.Grpc;
+using Palantir.Oms.Contracts;
 using Palantir.OmsService.Execution;
 using Palantir.OmsService.Projections;
 using Palantir.OmsService.Repositories;
 using Palantir.Platform.Caching;
-using Palantir.Platform.CQRS;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.EventStore;
+using Palantir.Platform.Exceptions;
 using Palantir.Platform.FeatureFlags;
 using Palantir.Platform.Grpc;
-using Palantir.Platform.Exceptions;
+using Palantir.Platform.Messaging;
 using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
+using Wolverine.RabbitMQ;
 
 DbProviderFactories.RegisterFactory("Npgsql", NpgsqlFactory.Instance);
 
@@ -26,6 +27,8 @@ builder.AddServiceDefaults();
 
 var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
                        ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
+var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
+                 ?? "amqp://guest:guest@localhost:5672";
 
 builder.Host.UseOrleans(siloBuilder =>
 {
@@ -48,52 +51,38 @@ builder.Host.UseOrleans(siloBuilder =>
     });
 });
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
+builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
+{
+    opts.PublishMessage<InitiateOrderSettlementCommand>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.SettlementSaga);
+    opts.PublishMessage<OrderSettlementFailedEvent>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.SettlementSaga);
+    opts.PublishMessage<AuditTrailEvent>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.AuditTrail);
+});
 
-builder.Services.AddPalantirCaching(redisConnectionString);
+builder.Services.AddPalantirCaching(connectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
 builder.Services.AddPalantirApiVersioning();
 builder.Services.AddPalantirFeatureFlags();
 
-// CQRS Pipeline Behaviors
-builder.Services.AddPalantirCqrs(typeof(Program).Assembly);
-
-// Marten Event Sourcing & Blotter Projection
+// Marten Event Sourcing & Blotter Projection on PostgreSQL
 builder.Services.AddPalantirEventStore(connectionString, opts =>
 {
     opts.Projections.Add<OrderBlotterProjection>(ProjectionLifecycle.Async);
 });
 builder.Services.AddScoped<IOrderRepository, MartenOrderRepository>();
 
-// Resilient gRPC Matching Client (HTTP/2)
+// Resilient gRPC Matching Client (HTTP/2) + Venue Dispatchers
 var localEngineUri = new Uri(builder.Configuration.GetConnectionString(AspireResourceNames.LocalEngineService)
-                             ?? "http://local-engine-service");
+                             ?? $"http://{AspireResourceNames.LocalEngineService}");
 builder.Services.AddResilientGrpcClient<MatchingEngineGrpc.MatchingEngineGrpcClient>(localEngineUri);
+builder.Services.AddScoped<IVenueDispatcher, LocalGrpcVenueDispatcher>();
 
-builder.Services.AddHttpClient<ILocalEngineClient, LocalEngineClient>(client =>
+builder.Services.AddHttpClient<ExternalHttpVenueDispatcher>(client =>
 {
-    client.BaseAddress = new Uri("http://local-engine-service");
+    client.BaseAddress = new Uri($"http://{AspireResourceNames.ExternalGatewayService}");
 });
-
-builder.Services.AddHttpClient<IExternalGatewayClient, ExternalGatewayClient>(client =>
-{
-    client.BaseAddress = new Uri("http://external-gateway-service");
-});
-
+builder.Services.AddScoped<IVenueDispatcher>(sp => sp.GetRequiredService<ExternalHttpVenueDispatcher>());
 builder.Services.AddScoped<IExecutionRouter, ExecutionRouter>();
-
-builder.Services.AddMassTransit(x =>
-{
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
-                         ?? "amqp://guest:guest@localhost:5672";
-        cfg.Host(new Uri(rabbitHost));
-        cfg.ConfigureEndpoints(context);
-    });
-});
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
 
@@ -101,7 +90,6 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
-
 app.MapEndpoints();
 
 app.Run();

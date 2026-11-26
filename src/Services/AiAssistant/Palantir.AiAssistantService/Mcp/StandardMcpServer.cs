@@ -1,7 +1,4 @@
-using System.Text.Json;
 using Palantir.AiAssistantService.Governance;
-using Qdrant.Client;
-using Qdrant.Client.Grpc;
 
 namespace Palantir.AiAssistantService.Mcp;
 
@@ -9,16 +6,13 @@ public class StandardMcpServer
 {
     private readonly IMcpToolExecutor _executor;
     private readonly AgentGovernanceManager _governance;
-    private readonly ILogger<StandardMcpServer> _logger;
 
     public StandardMcpServer(
         IMcpToolExecutor executor,
-        AgentGovernanceManager governance,
-        ILogger<StandardMcpServer> logger)
+        AgentGovernanceManager governance)
     {
         _executor = executor;
         _governance = governance;
-        _logger = logger;
     }
 
     public async Task<McpToolCallResult> CallToolAsync(string toolName, Dictionary<string, object>? arguments, CancellationToken ct = default)

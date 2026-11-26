@@ -1,38 +1,34 @@
+using Microsoft.EntityFrameworkCore;
 using Palantir.AiAssistantService.Mcp;
+using Palantir.AiAssistantService.Persistence;
 using Palantir.Constants;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
+using Palantir.Platform.Persistence;
 using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
-using Qdrant.Client;
-using Qdrant.Client.Grpc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
+var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
+                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
 
-builder.Services.AddPalantirCaching(redisConnectionString);
+builder.Services.AddDbContext<SentimentDbContext>(options =>
+{
+    options.UseNpgsql(connectionString, npgsql =>
+    {
+        npgsql.UseVector();
+        npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(5), null);
+    });
+});
+
+builder.Services.AddPalantirCaching(connectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
-
-// Qdrant Vector Client
-var qdrantEndpoint = builder.Configuration.GetConnectionString(AspireResourceNames.Qdrant)
-    ?? builder.Configuration["Qdrant:Endpoint"]
-    ?? builder.Configuration["Qdrant__Endpoint"]
-    ?? "http://localhost:6334";
-
-var qdrantUri = new Uri(qdrantEndpoint);
-var qdrantClient = new QdrantClient(
-    qdrantUri.Host,
-    qdrantUri.Port > 0 ? qdrantUri.Port : 6334,
-    https: qdrantUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase));
-
-builder.Services.AddSingleton(qdrantClient);
-builder.Services.AddHostedService<QdrantCollectionInitializer>();
+builder.Services.AddScoped<ISentimentSearchRepository, PostgresSentimentRepository>();
 
 // Downstream Microservice Clients for MCP Tools
 builder.Services.AddHttpClient("oms", client =>
@@ -57,7 +53,7 @@ builder.Services.AddHttpClient("portfolio", client =>
 
 // MCP Tools Executor
 builder.Services.AddScoped<IMcpToolExecutor, McpToolExecutor>();
-builder.Services.AddScoped<Palantir.AiAssistantService.Mcp.StandardMcpServer>();
+builder.Services.AddScoped<StandardMcpServer>();
 
 // Ollama Local AI & Embedding Wiring (Zero Azure)
 var ollamaEndpoint = builder.Configuration["Ollama__Endpoint"]
@@ -93,31 +89,10 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
 
+await app.Services.EnsurePostgresSchemaCreatedAsync<SentimentDbContext>(
+    "ai",
+    app.Services.GetRequiredService<ILogger<Program>>());
+
 app.MapEndpoints();
 
 app.Run();
-
-public class QdrantCollectionInitializer(QdrantClient qdrantClient, ILogger<QdrantCollectionInitializer> logger) : IHostedService
-{
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var exists = await qdrantClient.CollectionExistsAsync("market_sentiment", cancellationToken);
-            if (!exists)
-            {
-                await qdrantClient.CreateCollectionAsync(
-                    "market_sentiment",
-                    vectorsConfig: new VectorParams { Size = 128, Distance = Distance.Cosine },
-                    cancellationToken: cancellationToken);
-                logger.LogInformation("Qdrant collection 'market_sentiment' created successfully with Cosine distance.");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Could not initialize Qdrant collection 'market_sentiment'. It may be created later.");
-        }
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-}

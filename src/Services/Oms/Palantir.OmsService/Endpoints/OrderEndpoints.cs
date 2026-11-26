@@ -1,9 +1,11 @@
+using Marten;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Palantir.Constants;
 using Palantir.Oms.Contracts;
+using Palantir.OmsService.Projections;
 using Palantir.Platform.Endpoints;
 
 namespace Palantir.OmsService.Endpoints;
@@ -45,11 +47,18 @@ public class OrderEndpoints : IEndpoint
     private static async Task<IResult> GetOrderByIdAsync(
         Guid id,
         IGrainFactory grainFactory,
+        IQuerySession querySession,
         CancellationToken ct)
     {
         var grain = grainFactory.GetGrain<IOrderGrain>(id);
         var snapshot = await grain.GetSnapshotAsync();
-        return Results.Ok(snapshot);
+        if (snapshot.OrderId != Guid.Empty)
+        {
+            return Results.Ok(snapshot);
+        }
+
+        var blotterView = await querySession.LoadAsync<OrderBlotterView>(id, ct);
+        return blotterView != null ? Results.Ok(blotterView) : Results.NotFound();
     }
 
     private static async Task<IResult> CancelOrderAsync(
@@ -60,7 +69,7 @@ public class OrderEndpoints : IEndpoint
     {
         var grain = grainFactory.GetGrain<IOrderGrain>(id);
         var snapshot = await grain.CancelOrderAsync(reason ?? "User cancelled");
-        return Results.Ok(snapshot);
+        return snapshot.OrderId != Guid.Empty ? Results.Ok(snapshot) : Results.NotFound();
     }
 
     private static async Task<IResult> GetClientActiveOrdersAsync(
@@ -76,27 +85,28 @@ public class OrderEndpoints : IEndpoint
     private static async Task<IResult> GetBlotterOrdersAsync(
         string? symbol,
         Guid? clientId,
-        int limit,
-        IGrainFactory grainFactory,
+        int? limit,
+        IQuerySession querySession,
         CancellationToken ct)
     {
-        var size = limit <= 0 ? 50 : Math.Min(limit, 200);
-        var orders = new List<OrderStateSnapshot>();
+        var size = Math.Clamp(limit ?? 50, 1, 200);
+        IQueryable<OrderBlotterView> query = querySession.Query<OrderBlotterView>();
 
         if (clientId.HasValue && clientId.Value != Guid.Empty)
         {
-            var session = grainFactory.GetGrain<IClientSessionGrain>(clientId.Value.ToString("N"));
-            var activeOrderIds = await session.GetActiveOrdersAsync();
-            foreach (var orderId in activeOrderIds.Take(size))
-            {
-                var grain = grainFactory.GetGrain<IOrderGrain>(orderId);
-                var snapshot = await grain.GetSnapshotAsync();
-                if (string.IsNullOrWhiteSpace(symbol) || string.Equals(snapshot.Symbol, symbol, StringComparison.OrdinalIgnoreCase))
-                {
-                    orders.Add(snapshot);
-                }
-            }
+            query = query.Where(x => x.ClientId == clientId.Value);
         }
+
+        if (!string.IsNullOrWhiteSpace(symbol))
+        {
+            var upperSymbol = symbol.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Symbol == upperSymbol);
+        }
+
+        var orders = await query
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Take(size)
+            .ToListAsync(ct);
 
         return Results.Ok(orders);
     }

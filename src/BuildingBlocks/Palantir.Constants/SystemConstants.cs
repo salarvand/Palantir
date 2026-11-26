@@ -4,18 +4,12 @@ public static class AspireResourceNames
 {
     // Infrastructure
     public const string Postgres = "postgres";
-    public const string Timescale = "timescale";
-    public const string Redis = "redis";
     public const string RabbitMq = "rabbitmq";
-    public const string Kafka = "kafka";
     public const string Keycloak = "keycloak";
-    public const string Meilisearch = "meilisearch";
-    public const string Qdrant = "qdrant";
     public const string Ollama = "ollama";
 
     // Databases
     public const string PalantirDb = "PalantirDb";
-    public const string TimescaleDb = "TimescaleDb";
 
     // Microservices
     public const string Gateway = "gateway";
@@ -29,7 +23,6 @@ public static class AspireResourceNames
     public const string SettlementService = "settlement-service";
     public const string AuditService = "audit-service";
     public const string AiAssistantService = "ai-assistant-service";
-    public const string MockExchange = "mock-exchange";
 
     // Frontend
     public const string FrontendShell = "frontend-shell";
@@ -37,25 +30,31 @@ public static class AspireResourceNames
 
 public static class MessagingConstants
 {
-    public static class KafkaTopics
-    {
-        public const string MarketTicks = "market.ticks.v1";
-        public const string MarketCandles = "market.ohlc.v1";
-        public const string TradesExecuted = "trades.executed.v1";
-        public const string OrderBookLevel2 = "market.orderbook.v1";
-    }
-
     public static class RabbitMqExchanges
     {
         public const string TradingCommands = "trading.commands";
         public const string Sagas = "trading.sagas";
         public const string IamEvents = "iam.events";
+        public const string MarketData = "market.data";
+        public const string AuditEvents = "audit.events";
     }
 
-    public static class RedisKeys
+    public static class RabbitMqQueues
+    {
+        public const string MarketTicks = "market.ticks.v1";
+        public const string OrderBookUpdates = "market.orderbook.v1";
+        public const string SettlementSaga = "trading.settlement.saga";
+        public const string RiskChecks = "trading.risk.checks";
+        public const string PortfolioMargin = "trading.portfolio.margin";
+        public const string AuditTrail = "audit.trail.v1";
+        public const string IamEvents = "iam.events.v1";
+    }
+
+    public static class CacheKeys
     {
         public static string PermissionToken(Guid userId) => $"iam:perm:{userId:N}";
         public static string OrderBook(string symbol) => $"market:book:{symbol.ToUpperInvariant()}";
-        public static string CurrentCandle(string symbol, string timeframe) => $"market:candle:{symbol.ToUpperInvariant()}:{timeframe}";
+        public static string MarketQuote(string symbol) => $"market:quote:{symbol.ToUpperInvariant()}";
+        public static string TokenExchange(string targetAudience, string tokenHash) => $"iam:token_exchange:{targetAudience}:{tokenHash}";
     }
 }

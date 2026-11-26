@@ -10,5 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Sdk" />
+    <PackageReference Include="WolverineFx" />
   </ItemGroup>
 </Project>

@@ -3,21 +3,16 @@ using Palantir.Constants;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Storage & Infrastructure Containers
+// Consolidated PostgreSQL (pgvector/pg16) & RabbitMQ Infrastructure
 var postgres = builder.AddPostgres(AspireResourceNames.Postgres)
+    .WithImage("pgvector/pgvector", "pg16")
     .WithDataVolume()
     .WithPgAdmin();
 
 var palantirDb = postgres.AddDatabase(AspireResourceNames.PalantirDb);
 
-var redis = builder.AddRedis(AspireResourceNames.Redis)
-    .WithDataVolume();
-
 var rabbitmq = builder.AddRabbitMQ(AspireResourceNames.RabbitMq)
     .WithManagementPlugin()
-    .WithDataVolume();
-
-var kafka = builder.AddKafka(AspireResourceNames.Kafka)
     .WithDataVolume();
 
 // Keycloak Container with Automated Realm Import
@@ -29,25 +24,6 @@ var keycloak = builder.AddContainer(AspireResourceNames.Keycloak, "quay.io/keycl
     .WithBindMount(realmPath, "/opt/keycloak/data/import/palantir-realm.json")
     .WithArgs("start-dev", "--import-realm");
 
-// Polyglot Persistence Containers
-var timescale = builder.AddContainer(AspireResourceNames.Timescale, "timescale/timescaledb-ha", "pg16")
-    .WithEndpoint(port: 5433, targetPort: 5432, name: "tcp")
-    .WithEnvironment("POSTGRES_DB", AspireResourceNames.TimescaleDb)
-    .WithEnvironment("POSTGRES_USER", "postgres")
-    .WithEnvironment("POSTGRES_PASSWORD", "postgres")
-    .WithVolume("timescaledb-data", "/var/lib/postgresql/data");
-
-var meilisearch = builder.AddContainer(AspireResourceNames.Meilisearch, "getmeili/meilisearch", "v1.12")
-    .WithHttpEndpoint(port: 7700, targetPort: 7700, name: "http")
-    .WithEnvironment("MEILI_NO_ANALYTICS", "true")
-    .WithEnvironment("MEILI_MASTER_KEY", "palantir-master-key-dev-12345678")
-    .WithVolume("meilisearch-data", "/meili_data");
-
-var qdrant = builder.AddContainer(AspireResourceNames.Qdrant, "qdrant/qdrant", "latest")
-    .WithHttpEndpoint(port: 6333, targetPort: 6333, name: "http")
-    .WithEndpoint(port: 6334, targetPort: 6334, name: "grpc")
-    .WithVolume("qdrant-data", "/qdrant/storage");
-
 // Ollama Container Registration (Zero Azure)
 var ollama = builder.AddContainer(AspireResourceNames.Ollama, "ollama/ollama", "latest")
     .WithHttpEndpoint(port: 11434, targetPort: 11434, name: "http")
@@ -56,72 +32,71 @@ var ollama = builder.AddContainer(AspireResourceNames.Ollama, "ollama/ollama", "
 // Microservices & Edge Projects
 var iamService = builder.AddProject<Projects.Palantir_IamService>(AspireResourceNames.IamService)
     .WithReference(palantirDb)
-    .WithReference(redis)
     .WithReference(rabbitmq)
     .WithReference(keycloak.GetEndpoint("http"))
     .WithEnvironment("Keycloak__Url", keycloak.GetEndpoint("http"))
-    .WaitFor(palantirDb);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var localEngine = builder.AddProject<Projects.Palantir_LocalEngineService>(AspireResourceNames.LocalEngineService)
     .WithReference(palantirDb)
-    .WithReference(redis)
     .WithReference(rabbitmq)
-    .WithReference(kafka)
-    .WithReference(timescale.GetEndpoint("tcp"))
-    .WithEnvironment("ConnectionStrings__TimescaleDb", "Host=localhost;Port=5433;Database=TimescaleDb;Username=postgres;Password=postgres")
-    .WaitFor(palantirDb);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var externalGateway = builder.AddProject<Projects.Palantir_ExternalGatewayService>(AspireResourceNames.ExternalGatewayService)
-    .WithReference(redis)
+    .WithReference(palantirDb)
     .WithReference(rabbitmq)
-    .WithReference(kafka);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var omsService = builder.AddProject<Projects.Palantir_OmsService>(AspireResourceNames.OmsService)
     .WithReference(palantirDb)
-    .WithReference(redis)
     .WithReference(rabbitmq)
     .WithReference(localEngine)
     .WithReference(externalGateway)
-    .WaitFor(palantirDb);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var marketData = builder.AddProject<Projects.Palantir_MarketDataService>(AspireResourceNames.MarketDataService)
-    .WithReference(redis)
+    .WithReference(palantirDb)
     .WithReference(rabbitmq)
-    .WithReference(kafka);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var riskService = builder.AddProject<Projects.Palantir_RiskService>(AspireResourceNames.RiskService)
-    .WithReference(redis)
-    .WithReference(rabbitmq);
+    .WithReference(palantirDb)
+    .WithReference(rabbitmq)
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var portfolioService = builder.AddProject<Projects.Palantir_PortfolioService>(AspireResourceNames.PortfolioService)
     .WithReference(palantirDb)
-    .WithReference(redis)
     .WithReference(rabbitmq)
-    .WaitFor(palantirDb);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var settlementService = builder.AddProject<Projects.Palantir_SettlementService>(AspireResourceNames.SettlementService)
     .WithReference(palantirDb)
-    .WithReference(redis)
     .WithReference(rabbitmq)
-    .WaitFor(palantirDb);
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var auditService = builder.AddProject<Projects.Palantir_AuditService>(AspireResourceNames.AuditService)
-    .WithReference(redis)
+    .WithReference(palantirDb)
     .WithReference(rabbitmq)
-    .WithReference(meilisearch.GetEndpoint("http"))
-    .WithEnvironment("Meilisearch__Url", meilisearch.GetEndpoint("http"))
-    .WithEnvironment("Meilisearch__ApiKey", "palantir-master-key-dev-12345678");
+    .WaitFor(palantirDb)
+    .WaitFor(rabbitmq);
 
 var aiAssistant = builder.AddProject<Projects.Palantir_AiAssistantService>(AspireResourceNames.AiAssistantService)
-    .WithReference(redis)
-    .WithReference(qdrant.GetEndpoint("grpc"))
+    .WithReference(palantirDb)
     .WithReference(ollama.GetEndpoint("http"))
     .WithReference(omsService)
     .WithReference(marketData)
     .WithReference(riskService)
     .WithReference(portfolioService)
-    .WithEnvironment("Qdrant__Endpoint", qdrant.GetEndpoint("grpc"))
-    .WithEnvironment("Ollama__Endpoint", ollama.GetEndpoint("http"));
+    .WithEnvironment("Ollama__Endpoint", ollama.GetEndpoint("http"))
+    .WaitFor(palantirDb);
 
 var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.Gateway)
     .WithReference(iamService)

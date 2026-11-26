@@ -3,24 +3,18 @@
     <!-- Aspire & Hosting -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.Kafka" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.Keycloak" Version="13.6.5-preview.1.26559.7" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.2.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="9.1.0" />
-
-    <!-- MediatR & CQRS -->
-    <PackageVersion Include="MediatR" Version="12.5.0" />
-    <PackageVersion Include="MediatR.Contracts" Version="2.0.1" />
 
     <!-- WolverineFx -->
     <PackageVersion Include="WolverineFx" Version="3.8.0" />
     <PackageVersion Include="WolverineFx.Http" Version="3.8.0" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="3.8.0" />
-    <PackageVersion Include="WolverineFx.Kafka" Version="3.8.0" />
     <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="3.8.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="3.8.0" />
+    <PackageVersion Include="WolverineFx.Marten" Version="3.8.0" />
     <PackageVersion Include="WolverineFx.Http.Marten" Version="3.8.0" />
 
     <!-- Marten Event Store -->
@@ -53,31 +47,23 @@
     <PackageVersion Include="Microsoft.Orleans.Reminders.AdoNet" Version="9.1.2" />
     <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="9.1.2" />
 
-    <!-- MassTransit (Sagas & Hybrid Messaging) -->
-    <PackageVersion Include="MassTransit" Version="8.3.6" />
-    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.3.6" />
-    <PackageVersion Include="MassTransit.Kafka" Version="8.3.6" />
-    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.3.6" />
-
     <!-- Domain & Value Objects -->
     <PackageVersion Include="Vogen" Version="6.0.0" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
 
-    <!-- Database & Caching -->
-    <PackageVersion Include="MeiliSearch" Version="0.20.0" />
-    <PackageVersion Include="Qdrant.Client" Version="1.20.0" />
+    <!-- Database & Caching (PostgreSQL + pgvector) -->
     <PackageVersion Include="Npgsql" Version="9.0.3" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" />
+    <PackageVersion Include="Pgvector" Version="0.3.2" />
+    <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
     <PackageVersion Include="ZiggyCreatures.FusionCache" Version="2.1.0" />
-    <PackageVersion Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.1.0" />
     <PackageVersion Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.1.0" />
-    <PackageVersion Include="StackExchange.Redis" Version="2.13.17" />
 
     <!-- API & Documentation -->
     <PackageVersion Include="Asp.Versioning.Http" Version="8.1.0" />
@@ -116,8 +102,6 @@
     <PackageVersion Include="PactNet" Version="5.0.1" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.3.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.3.0" />
-    <PackageVersion Include="Testcontainers.Kafka" Version="4.3.0" />
-    <PackageVersion Include="Testcontainers.Redis" Version="4.3.0" />
     <PackageVersion Include="Testcontainers.Keycloak" Version="4.3.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
   </ItemGroup>

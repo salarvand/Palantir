@@ -15,6 +15,6 @@ Feature: High-Speed Order Placement and Matching Flow
     When Trader submits a Limit Buy order for 100 shares of "PAL/USD" at 150.25
     Then The matching engine should execute the match over HTTP/2 gRPC
     And The execution report status should be "Filled"
-    And An execution tick should be published to Kafka topic "palantir.market.ticks"
+    And An execution tick should be published to RabbitMQ exchange "market.data" (queue "market.ticks.v1")
     And The order blotter view should display status "Filled" with average price 150.25
-    And The MassTransit settlement saga should transition to "Settled"
+    And The Wolverine settlement saga should transition to "Settled"

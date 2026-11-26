@@ -1,99 +1,126 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
+using Palantir.LocalEngineService.Grpc;
 using Palantir.Oms.Contracts;
 
 namespace Palantir.OmsService.Execution;
 
-public record ExecutionDispatchResult(bool IsSuccess, string? ErrorMessage = null);
+public record ExecutionDispatchResult(
+    bool IsSuccess,
+    string Status = "Placed",
+    decimal FilledQuantity = 0m,
+    decimal AveragePrice = 0m,
+    Guid? TradeId = null,
+    string? ErrorMessage = null);
 
-public interface ILocalEngineClient
+public interface IVenueDispatcher
 {
-    Task<bool> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default);
+    string VenueType { get; }
+    Task<ExecutionDispatchResult> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default);
+    Task<bool> CancelOrderAsync(Guid orderId, string symbol, string reason, CancellationToken ct = default);
 }
 
-public class LocalEngineClient : ILocalEngineClient
+public sealed class LocalGrpcVenueDispatcher : IVenueDispatcher
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<LocalEngineClient> _logger;
+    private readonly MatchingEngineGrpc.MatchingEngineGrpcClient _grpcClient;
+    private readonly ILogger<LocalGrpcVenueDispatcher> _logger;
 
-    public LocalEngineClient(HttpClient httpClient, ILogger<LocalEngineClient> logger)
+    public LocalGrpcVenueDispatcher(
+        MatchingEngineGrpc.MatchingEngineGrpcClient grpcClient,
+        ILogger<LocalGrpcVenueDispatcher> logger)
     {
-        _httpClient = httpClient;
+        _grpcClient = grpcClient;
         _logger = logger;
     }
 
-    public async Task<bool> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default)
+    public string VenueType => "Local";
+
+    public async Task<ExecutionDispatchResult> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default)
     {
-        var entry = new
+        var grpcRequest = new GrpcSubmitOrderRequest
         {
-            request.OrderId,
-            request.ClientId,
-            request.Symbol,
-            request.Side,
-            request.Type,
-            request.Price,
-            request.Quantity,
-            TimestampUtc = DateTimeOffset.UtcNow
+            OrderId = request.OrderId.ToString(),
+            ClientId = request.ClientId.ToString(),
+            Symbol = request.Symbol,
+            Side = (int)request.Side,
+            Type = (int)request.Type,
+            Quantity = request.Quantity.ToString(CultureInfo.InvariantCulture),
+            Price = request.Price.ToString(CultureInfo.InvariantCulture),
+            TimeInForce = (int)request.TimeInForce
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/api/v1/engine/match", entry, ct);
-        if (!response.IsSuccessStatusCode)
+        var report = await _grpcClient.SubmitOrderAsync(grpcRequest, cancellationToken: ct);
+
+        decimal.TryParse(report.FilledQuantity, NumberStyles.Any, CultureInfo.InvariantCulture, out var filledQty);
+        decimal.TryParse(report.AveragePrice, NumberStyles.Any, CultureInfo.InvariantCulture, out var avgPrice);
+        Guid? tradeId = Guid.TryParse(report.TradeId, out var parsedTradeId) ? parsedTradeId : null;
+
+        var isSuccess = !string.Equals(report.Status, "Rejected", StringComparison.OrdinalIgnoreCase);
+        if (!isSuccess)
         {
-            _logger.LogError("Failed to dispatch order {OrderId} to LocalEngine. StatusCode: {StatusCode}", request.OrderId, response.StatusCode);
-            return false;
+            _logger.LogWarning("LocalEngine rejected order {OrderId}: {Message}", request.OrderId, report.Message);
         }
 
-        return true;
+        return new ExecutionDispatchResult(isSuccess, report.Status, filledQty, avgPrice, tradeId, isSuccess ? null : report.Message);
+    }
+
+    public async Task<bool> CancelOrderAsync(Guid orderId, string symbol, string reason, CancellationToken ct = default)
+    {
+        var report = await _grpcClient.CancelOrderAsync(new GrpcCancelOrderRequest
+        {
+            OrderId = orderId.ToString(),
+            Symbol = symbol,
+            Reason = reason
+        }, cancellationToken: ct);
+
+        return report.IsCancelled;
     }
 }
 
-public interface IExternalGatewayClient
-{
-    Task<bool> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default);
-}
-
-public class ExternalGatewayClient : IExternalGatewayClient
+public sealed class ExternalHttpVenueDispatcher : IVenueDispatcher
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<ExternalGatewayClient> _logger;
+    private readonly ILogger<ExternalHttpVenueDispatcher> _logger;
 
-    public ExternalGatewayClient(HttpClient httpClient, ILogger<ExternalGatewayClient> logger)
+    public ExternalHttpVenueDispatcher(HttpClient httpClient, ILogger<ExternalHttpVenueDispatcher> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
     }
 
-    public async Task<bool> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default)
+    public string VenueType => "External";
+
+    public async Task<ExecutionDispatchResult> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default)
     {
         var response = await _httpClient.PostAsJsonAsync("/api/v1/external/orders", request, ct);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Failed to dispatch order {OrderId} to ExternalGateway. StatusCode: {StatusCode}", request.OrderId, response.StatusCode);
-            return false;
+            return new ExecutionDispatchResult(false, "Rejected", ErrorMessage: $"External venue error: {response.StatusCode}");
         }
 
-        return true;
+        return new ExecutionDispatchResult(true, "Placed");
     }
+
+    public Task<bool> CancelOrderAsync(Guid orderId, string symbol, string reason, CancellationToken ct = default) =>
+        Task.FromResult(true);
 }
 
 public interface IExecutionRouter
 {
     Task<ExecutionDispatchResult> DispatchOrderAsync(SubmitOrderRequest request, CancellationToken ct = default);
+    Task<bool> CancelOrderAsync(string venueType, Guid orderId, string symbol, string reason, CancellationToken ct = default);
 }
 
-public class ExecutionRouter : IExecutionRouter
+public sealed class ExecutionRouter : IExecutionRouter
 {
-    private readonly ILocalEngineClient _localEngineClient;
-    private readonly IExternalGatewayClient _externalGatewayClient;
+    private readonly IReadOnlyDictionary<string, IVenueDispatcher> _dispatchers;
     private readonly ILogger<ExecutionRouter> _logger;
 
-    public ExecutionRouter(
-        ILocalEngineClient localEngineClient,
-        IExternalGatewayClient externalGatewayClient,
-        ILogger<ExecutionRouter> logger)
+    public ExecutionRouter(IEnumerable<IVenueDispatcher> dispatchers, ILogger<ExecutionRouter> logger)
     {
-        _localEngineClient = localEngineClient;
-        _externalGatewayClient = externalGatewayClient;
+        _dispatchers = dispatchers.ToDictionary(d => d.VenueType, StringComparer.OrdinalIgnoreCase);
         _logger = logger;
     }
 
@@ -101,22 +128,37 @@ public class ExecutionRouter : IExecutionRouter
     {
         try
         {
-            bool success;
-            if (string.Equals(request.VenueType, "External", StringComparison.OrdinalIgnoreCase))
-            {
-                success = await _externalGatewayClient.DispatchOrderAsync(request, ct);
-            }
-            else
-            {
-                success = await _localEngineClient.DispatchOrderAsync(request, ct);
-            }
-
-            return new ExecutionDispatchResult(success, success ? null : "Execution venue rejected or failed to process order.");
+            var dispatcher = ResolveDispatcher(request.VenueType);
+            return await dispatcher.DispatchOrderAsync(request, ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error dispatching order {OrderId} to venue {VenueType}", request.OrderId, request.VenueType);
-            return new ExecutionDispatchResult(false, ex.Message);
+            return new ExecutionDispatchResult(false, "Rejected", ErrorMessage: ex.Message);
         }
+    }
+
+    public async Task<bool> CancelOrderAsync(string venueType, Guid orderId, string symbol, string reason, CancellationToken ct = default)
+    {
+        try
+        {
+            var dispatcher = ResolveDispatcher(venueType);
+            return await dispatcher.CancelOrderAsync(orderId, symbol, reason, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling order {OrderId} on venue {VenueType}", orderId, venueType);
+            return false;
+        }
+    }
+
+    private IVenueDispatcher ResolveDispatcher(string venueType)
+    {
+        if (_dispatchers.TryGetValue(venueType, out var dispatcher))
+        {
+            return dispatcher;
+        }
+
+        return _dispatchers["Local"];
     }
 }

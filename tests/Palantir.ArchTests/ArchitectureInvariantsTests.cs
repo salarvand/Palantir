@@ -1,5 +1,3 @@
-using Palantir.Constants;
-using Palantir.Platform.CQRS;
 using Palantir.Platform.Endpoints;
 using Palantir.SharedKernel;
 using Shouldly;
@@ -18,7 +16,11 @@ public class ArchitectureInvariantsTests
         referencedAssemblies.ShouldNotContain(a => a.Name == "Palantir.Platform");
         referencedAssemblies.ShouldNotContain(a => a.Name == "Npgsql");
         referencedAssemblies.ShouldNotContain(a => a.Name == "Marten");
-        referencedAssemblies.ShouldNotContain(a => a.Name == "Wolverine");
+        referencedAssemblies.ShouldNotContain(a => a.Name == "WolverineFx");
+        referencedAssemblies.ShouldNotContain(a => a.Name == "MassTransit");
+        referencedAssemblies.ShouldNotContain(a => a.Name == "StackExchange.Redis");
+        referencedAssemblies.ShouldNotContain(a => a.Name == "Meilisearch");
+        referencedAssemblies.ShouldNotContain(a => a.Name == "Qdrant.Client");
     }
 
     [Fact]

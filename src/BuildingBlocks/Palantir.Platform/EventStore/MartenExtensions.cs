@@ -2,6 +2,7 @@ using Marten;
 using Marten.Events.Daemon.Resiliency;
 using Microsoft.Extensions.DependencyInjection;
 using Weasel.Core;
+using Wolverine.Marten;
 
 namespace Palantir.Platform.EventStore;
 
@@ -25,7 +26,8 @@ public static class MartenExtensions
             configure?.Invoke(opts);
         })
         .AddAsyncDaemon(DaemonMode.Solo)
-        .UseLightweightSessions();
+        .UseLightweightSessions()
+        .IntegrateWithWolverine();
 
         return services;
     }

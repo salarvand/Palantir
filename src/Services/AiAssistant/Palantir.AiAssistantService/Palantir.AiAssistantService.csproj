@@ -10,8 +10,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Qdrant.Client" />
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Pgvector" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" />
   </ItemGroup>
 </Project>

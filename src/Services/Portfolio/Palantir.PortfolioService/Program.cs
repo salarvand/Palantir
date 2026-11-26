@@ -1,19 +1,23 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Palantir.Constants;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
+using Palantir.Platform.Messaging;
+using Palantir.Platform.Persistence;
 using Palantir.Platform.Security;
 using Palantir.PortfolioService.Infrastructure;
 using Palantir.ServiceDefaults;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
 var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
-                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres;SSL Mode=Disable;Include Error Detail=true";
+                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
+var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
+                 ?? "amqp://guest:guest@localhost:5672";
 
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
 {
@@ -23,23 +27,14 @@ builder.Services.AddDbContext<PortfolioDbContext>(options =>
     });
 });
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
-
-builder.Services.AddPalantirCaching(redisConnectionString);
+builder.Services.AddPalantirCaching(connectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
 
-builder.Services.AddMassTransit(x =>
+builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
 {
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
-                         ?? "amqp://guest:guest@localhost:5672";
-        cfg.Host(new Uri(rabbitHost));
-        cfg.ConfigureEndpoints(context);
-    });
-});
+    opts.ListenToRabbitQueue(MessagingConstants.RabbitMqQueues.PortfolioMargin);
+}, useEntityFrameworkCore: true);
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
 
@@ -48,27 +43,9 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var retryCount = 0;
-    const int maxRetries = 10;
-    while (true)
-    {
-        try
-        {
-            await db.Database.EnsureCreatedAsync();
-            break;
-        }
-        catch (Exception ex) when (retryCount < maxRetries)
-        {
-            retryCount++;
-            logger.LogWarning(ex, "Failed to connect to PalantirDb on attempt {RetryCount}/{MaxRetries}. Retrying in 2 seconds...", retryCount, maxRetries);
-            await Task.Delay(TimeSpan.FromSeconds(2));
-        }
-    }
-}
+await app.Services.EnsurePostgresSchemaCreatedAsync<PortfolioDbContext>(
+    "portfolio",
+    app.Services.GetRequiredService<ILogger<Program>>());
 
 app.MapEndpoints();
 

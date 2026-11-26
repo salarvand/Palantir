@@ -1,4 +1,5 @@
 using Palantir.SharedKernel;
+using Wolverine.Persistence.Sagas;
 
 namespace Palantir.Oms.Contracts;
 
@@ -58,14 +59,32 @@ public record OrderStateSnapshot(
 
 [GenerateSerializer]
 public record TradeExecutedEvent(
-    Guid OrderId,
+    [property: SagaIdentity] Guid OrderId,
     Guid TradeId,
     decimal FilledQuantity,
     decimal ExecutionPrice
 );
 
+public record OrderBookLevelDto(decimal Price, decimal Quantity);
+
+public record MarketTickRecordedEvent(
+    Guid TradeId,
+    string Symbol,
+    decimal Price,
+    decimal Quantity,
+    TradeSide Side,
+    DateTimeOffset TimestampUtc
+);
+
+public record OrderBookUpdatedEvent(
+    string Symbol,
+    IReadOnlyList<OrderBookLevelDto> Bids,
+    IReadOnlyList<OrderBookLevelDto> Asks,
+    DateTimeOffset TimestampUtc
+);
+
 public record InitiateOrderSettlementCommand(
-    Guid OrderId,
+    [property: SagaIdentity] Guid OrderId,
     Guid ClientId,
     string Symbol,
     decimal Quantity,
@@ -73,7 +92,7 @@ public record InitiateOrderSettlementCommand(
 );
 
 public record PreTradeRiskApprovedEvent(
-    Guid OrderId,
+    [property: SagaIdentity] Guid OrderId,
     decimal RequiredMargin
 );
 
@@ -95,4 +114,21 @@ public record CheckPreTradeRiskCommand(
 public record ConfirmSettlementEvent(
     Guid OrderId,
     DateTimeOffset SettledAtUtc
+);
+
+public record OrderSettlementFailedEvent(
+    [property: SagaIdentity] Guid OrderId,
+    string Reason
+);
+
+public record AuditTrailEvent(
+    string EventType,
+    Guid OrderId,
+    Guid? TradeId,
+    Guid ClientId,
+    string Symbol,
+    decimal Price,
+    decimal Quantity,
+    string PayloadJson,
+    DateTimeOffset TimestampUtc
 );

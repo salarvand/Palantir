@@ -1,11 +1,12 @@
-using MassTransit;
+using System.Text.Json;
 using Palantir.Oms.Contracts;
+using Wolverine;
 
 namespace Palantir.SettlementService.Sagas;
 
-public class OrderSettlementState : SagaStateMachineInstance
+public class OrderSettlementSaga : Saga
 {
-    public Guid CorrelationId { get; set; }
+    public Guid Id { get; set; }
     public string CurrentState { get; set; } = string.Empty;
     public Guid OrderId { get; set; }
     public Guid ClientId { get; set; }
@@ -16,100 +17,81 @@ public class OrderSettlementState : SagaStateMachineInstance
     public string? FailureReason { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? SettledAtUtc { get; set; }
-    public byte[]? RowVersion { get; set; }
-}
 
-public record OrderSettlementFailedEvent(
-    Guid OrderId,
-    string Reason
-) : CorrelatedBy<Guid>
-{
-    public Guid CorrelationId => OrderId;
-}
-
-public class OrderSettlementStateMachine : MassTransitStateMachine<OrderSettlementState>
-{
-    public State Submitted { get; private set; } = null!;
-    public State RiskApproved { get; private set; } = null!;
-    public State ExecutionMatched { get; private set; } = null!;
-    public State Settled { get; private set; } = null!;
-    public State Compensating { get; private set; } = null!;
-    public State Failed { get; private set; } = null!;
-
-    public Event<InitiateOrderSettlementCommand> OrderInitiated { get; private set; } = null!;
-    public Event<PreTradeRiskApprovedEvent> RiskApprovedEvent { get; private set; } = null!;
-    public Event<TradeExecutedEvent> TradeExecuted { get; private set; } = null!;
-    public Event<OrderSettlementFailedEvent> OrderFailedOrRejected { get; private set; } = null!;
-
-    public OrderSettlementStateMachine()
+    public static (OrderSettlementSaga, CheckPreTradeRiskCommand) Start(InitiateOrderSettlementCommand command)
     {
-        InstanceState(x => x.CurrentState);
+        var saga = new OrderSettlementSaga
+        {
+            Id = command.OrderId,
+            OrderId = command.OrderId,
+            ClientId = command.ClientId,
+            Symbol = command.Symbol,
+            Quantity = command.Quantity,
+            Price = command.Price,
+            CurrentState = "Submitted",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        };
 
-        Event(() => OrderInitiated, x => x.CorrelateById(c => c.Message.OrderId));
-        Event(() => RiskApprovedEvent, x => x.CorrelateById(c => c.Message.OrderId));
-        Event(() => TradeExecuted, x => x.CorrelateById(c => c.Message.OrderId));
-        Event(() => OrderFailedOrRejected, x => x.CorrelateById(c => c.Message.OrderId));
+        var riskCheck = new CheckPreTradeRiskCommand(
+            command.OrderId,
+            command.ClientId,
+            command.Symbol,
+            command.Quantity,
+            command.Price);
 
-        Initially(
-            When(OrderInitiated)
-                .Then(context =>
-                {
-                    context.Saga.OrderId = context.Message.OrderId;
-                    context.Saga.ClientId = context.Message.ClientId;
-                    context.Saga.Symbol = context.Message.Symbol;
-                    context.Saga.Quantity = context.Message.Quantity;
-                    context.Saga.Price = context.Message.Price;
-                    context.Saga.CreatedAtUtc = DateTimeOffset.UtcNow;
-                })
-                .Publish(context => new CheckPreTradeRiskCommand(
-                    context.Saga.OrderId,
-                    context.Saga.ClientId,
-                    context.Saga.Symbol,
-                    context.Saga.Quantity,
-                    context.Saga.Price
-                ))
-                .TransitionTo(Submitted)
-        );
-
-        During(Submitted,
-            When(RiskApprovedEvent)
-                .Then(context =>
-                {
-                    context.Saga.ReservedMargin = context.Message.RequiredMargin;
-                })
-                .TransitionTo(RiskApproved)
-        );
-
-        During(RiskApproved,
-            When(TradeExecuted)
-                .Then(context =>
-                {
-                    context.Saga.SettledAtUtc = DateTimeOffset.UtcNow;
-                })
-                .Publish(context => new ConfirmSettlementEvent(
-                    context.Saga.OrderId,
-                    DateTimeOffset.UtcNow
-                ))
-                .TransitionTo(Settled)
-                .Finalize()
-        );
-
-        DuringAny(
-            When(OrderFailedOrRejected)
-                .Then(context =>
-                {
-                    context.Saga.FailureReason = context.Message.Reason;
-                })
-                .TransitionTo(Compensating)
-                .Publish(context => new ReleaseReservedMarginCommand(
-                    context.Saga.OrderId,
-                    context.Saga.ClientId,
-                    context.Saga.ReservedMargin,
-                    context.Message.Reason
-                ))
-                .TransitionTo(Failed)
-        );
-
-        SetCompletedWhenFinalized();
+        return (saga, riskCheck);
     }
+
+    public void Handle(PreTradeRiskApprovedEvent evt)
+    {
+        if (CurrentState is "Settled" or "Failed") return;
+
+        ReservedMargin = evt.RequiredMargin;
+        CurrentState = "RiskApproved";
+    }
+
+    public (ConfirmSettlementEvent?, AuditTrailEvent?) Handle(TradeExecutedEvent evt)
+    {
+        if (CurrentState is "Settled" or "Failed")
+        {
+            return (null, null);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        SettledAtUtc = now;
+        CurrentState = "Settled";
+        MarkCompleted();
+
+        var confirm = new ConfirmSettlementEvent(OrderId, now);
+        var audit = CreateAuditEvent("SettlementCompleted", evt.TradeId, evt.ExecutionPrice, evt.FilledQuantity);
+        return (confirm, audit);
+    }
+
+    public (ReleaseReservedMarginCommand?, AuditTrailEvent?) Handle(OrderSettlementFailedEvent evt)
+    {
+        if (CurrentState is "Settled" or "Failed")
+        {
+            return (null, null);
+        }
+
+        FailureReason = evt.Reason;
+        CurrentState = "Failed";
+        MarkCompleted();
+
+        var release = new ReleaseReservedMarginCommand(OrderId, ClientId, ReservedMargin, evt.Reason);
+        var audit = CreateAuditEvent("SettlementFailed", null, Price, Quantity);
+        return (release, audit);
+    }
+
+    private AuditTrailEvent CreateAuditEvent(string eventType, Guid? tradeId, decimal price, decimal quantity) =>
+        new(
+            eventType,
+            OrderId,
+            tradeId,
+            ClientId,
+            Symbol,
+            price,
+            quantity,
+            JsonSerializer.Serialize(new { OrderId, CurrentState, ReservedMargin, FailureReason }),
+            DateTimeOffset.UtcNow);
 }

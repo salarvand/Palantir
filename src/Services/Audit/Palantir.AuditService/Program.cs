@@ -1,47 +1,41 @@
-using MassTransit;
-using Meilisearch;
-using Palantir.AuditService.Domain;
+using Microsoft.EntityFrameworkCore;
 using Palantir.AuditService.Infrastructure;
 using Palantir.Constants;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
+using Palantir.Platform.Messaging;
+using Palantir.Platform.Persistence;
 using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
+var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
+                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
+var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
+                 ?? "amqp://guest:guest@localhost:5672";
 
-builder.Services.AddPalantirCaching(redisConnectionString);
-builder.Services.AddPalantirSecurity();
-builder.Services.AddPalantirProblemDetails();
-
-var meiliUrl = builder.Configuration.GetConnectionString(AspireResourceNames.Meilisearch)
-               ?? builder.Configuration["Meilisearch:Url"]
-               ?? builder.Configuration["Meilisearch__Url"]
-               ?? "http://localhost:7700";
-var meiliApiKey = builder.Configuration["Meilisearch:ApiKey"]
-                  ?? builder.Configuration["Meilisearch__ApiKey"]
-                  ?? "palantir-master-key-dev-12345678";
-
-builder.Services.AddSingleton(new MeilisearchClient(meiliUrl, meiliApiKey));
-builder.Services.AddSingleton<IAuditLogRepository, MeilisearchAuditLogRepository>();
-builder.Services.AddHostedService<MeilisearchIndexInitializer>();
-
-builder.Services.AddMassTransit(x =>
+builder.Services.AddDbContext<AuditDbContext>(options =>
 {
-    x.UsingRabbitMq((context, cfg) =>
+    options.UseNpgsql(connectionString, npgsql =>
     {
-        var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
-                         ?? "amqp://guest:guest@localhost:5672";
-        cfg.Host(new Uri(rabbitHost));
-        cfg.ConfigureEndpoints(context);
+        npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(5), null);
     });
 });
+
+builder.Services.AddPalantirCaching(connectionString);
+builder.Services.AddPalantirSecurity();
+builder.Services.AddPalantirProblemDetails();
+builder.Services.AddScoped<IAuditLogRepository, PostgresAuditLogRepository>();
+
+builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
+{
+    opts.ListenToRabbitQueue(MessagingConstants.RabbitMqQueues.AuditTrail);
+}, useEntityFrameworkCore: true);
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
 
@@ -49,6 +43,10 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
+
+await app.Services.EnsurePostgresSchemaCreatedAsync<AuditDbContext>(
+    "audit",
+    app.Services.GetRequiredService<ILogger<Program>>());
 
 app.MapEndpoints();
 

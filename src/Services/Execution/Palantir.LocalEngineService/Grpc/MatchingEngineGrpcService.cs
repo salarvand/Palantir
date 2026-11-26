@@ -1,30 +1,25 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using Grpc.Core;
-using MassTransit;
-using Palantir.Constants;
 using Palantir.LocalEngineService.Matching;
-using Palantir.LocalEngineService.Timescale;
 using Palantir.SharedKernel;
 
 namespace Palantir.LocalEngineService.Grpc;
 
 public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBase
 {
-    private static readonly ConcurrentDictionary<string, OrderBook> OrderBooks = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ITopicProducer<string, MarketTick> _tickProducer;
+    private readonly IOrderBookRegistry _bookRegistry;
+    private readonly IOrderExecutionPublisher _executionPublisher;
     private readonly ILogger<MatchingEngineGrpcService> _logger;
 
     public MatchingEngineGrpcService(
-        ITopicProducer<string, MarketTick> tickProducer,
+        IOrderBookRegistry bookRegistry,
+        IOrderExecutionPublisher executionPublisher,
         ILogger<MatchingEngineGrpcService> logger)
     {
-        _tickProducer = tickProducer;
+        _bookRegistry = bookRegistry;
+        _executionPublisher = executionPublisher;
         _logger = logger;
     }
-
-    public static OrderBook GetOrCreateBook(string symbol) =>
-        OrderBooks.GetOrAdd(symbol.ToUpperInvariant(), s => new OrderBook(s));
 
     public override async Task<GrpcExecutionReport> SubmitOrder(GrpcSubmitOrderRequest request, ServerCallContext context)
     {
@@ -48,7 +43,7 @@ public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBa
         var side = (TradeSide)request.Side;
         var type = (OrderType)request.Type;
 
-        var book = GetOrCreateBook(request.Symbol);
+        var book = _bookRegistry.GetOrCreate(request.Symbol);
         var entry = new OrderBookEntry(
             orderId,
             clientId,
@@ -57,10 +52,11 @@ public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBa
             type,
             price,
             quantity,
-            DateTimeOffset.UtcNow
-        );
+            DateTimeOffset.UtcNow);
 
         var matchResult = book.Match(entry);
+
+        await _executionPublisher.PublishMatchResultsAsync(request.Symbol, side, book, matchResult, context.CancellationToken);
 
         var tradeId = Guid.Empty;
         decimal averagePrice = price;
@@ -69,24 +65,9 @@ public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBa
             tradeId = matchResult.Executions[^1].TradeId;
             var totalVal = matchResult.Executions.Sum(e => e.Quantity * e.Price);
             averagePrice = totalVal / matchResult.FilledQuantity;
-
-            // Stream market ticks to Kafka
-            foreach (var execution in matchResult.Executions)
-            {
-                var tick = new MarketTick
-                {
-                    TradeId = execution.TradeId,
-                    TimestampUtc = execution.TimestampUtc,
-                    Symbol = request.Symbol,
-                    Price = execution.Price,
-                    Quantity = execution.Quantity,
-                    Side = side
-                };
-                await _tickProducer.Produce(request.Symbol, tick, context.CancellationToken);
-            }
         }
 
-        string status = matchResult.IsFullyFilled
+        var status = matchResult.IsFullyFilled
             ? "Filled"
             : matchResult.FilledQuantity > 0 ? "PartiallyFilled" : "Placed";
 
@@ -109,7 +90,7 @@ public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBa
         if (!Guid.TryParse(request.OrderId, out var orderId))
             throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid order_id"));
 
-        var book = GetOrCreateBook(request.Symbol);
+        var book = _bookRegistry.GetOrCreate(request.Symbol);
         var cancelled = book.Cancel(orderId);
 
         return Task.FromResult(new GrpcCancelReport
@@ -122,7 +103,7 @@ public class MatchingEngineGrpcService : MatchingEngineGrpc.MatchingEngineGrpcBa
 
     public override Task<GrpcOrderBookSnapshot> GetOrderBook(GrpcGetOrderBookRequest request, ServerCallContext context)
     {
-        var book = GetOrCreateBook(request.Symbol);
+        var book = _bookRegistry.GetOrCreate(request.Symbol);
         var depth = request.Depth > 0 ? request.Depth : 10;
         var (bids, asks) = book.GetDepth(depth);
 

@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -9,6 +8,7 @@ using Palantir.IamService.Domain;
 using Palantir.IamService.Infrastructure;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Security;
+using Wolverine;
 
 namespace Palantir.IamService.Endpoints;
 
@@ -31,7 +31,7 @@ public class UserEndpoints : IEndpoint
         IKeycloakAdminClient keycloakClient,
         IamDbContext db,
         IPermissionTokenManager tokenManager,
-        IPublishEndpoint publishEndpoint,
+        IMessageBus messageBus,
         CancellationToken ct)
     {
         var keycloakUserId = await keycloakClient.CreateUserInKeycloakAsync(
@@ -70,12 +70,12 @@ public class UserEndpoints : IEndpoint
 
         await tokenManager.SetPermissionTokenAsync(token, TimeSpan.FromMinutes(30), ct);
 
-        await publishEndpoint.Publish(new UserCreatedIntegrationEvent(
+        await messageBus.PublishAsync(new UserCreatedIntegrationEvent(
             profile.Id,
             profile.Username,
             profile.Email,
             profile.Role,
-            DateTimeOffset.UtcNow), ct);
+            DateTimeOffset.UtcNow));
 
         return Results.Created($"/api/v1/iam/users/{profile.Id}", new UserDto(
             profile.Id,
@@ -134,7 +134,7 @@ public class UserEndpoints : IEndpoint
         AssignPermissionsRequest request,
         IamDbContext db,
         IPermissionTokenManager tokenManager,
-        IPublishEndpoint publishEndpoint,
+        IMessageBus messageBus,
         CancellationToken ct)
     {
         var profile = await db.Profiles.FindAsync([id], ct);
@@ -153,10 +153,10 @@ public class UserEndpoints : IEndpoint
 
         await tokenManager.SetPermissionTokenAsync(token, TimeSpan.FromMinutes(30), ct);
 
-        await publishEndpoint.Publish(new PermissionsUpdatedIntegrationEvent(
+        await messageBus.PublishAsync(new PermissionsUpdatedIntegrationEvent(
             profile.Id,
             profile.AssignedPermissions,
-            DateTimeOffset.UtcNow), ct);
+            DateTimeOffset.UtcNow));
 
         return Results.Ok(profile.AssignedPermissions);
     }

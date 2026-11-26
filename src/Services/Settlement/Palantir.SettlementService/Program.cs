@@ -1,20 +1,23 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Palantir.Constants;
+using Palantir.Oms.Contracts;
 using Palantir.Platform.Caching;
-using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
+using Palantir.Platform.Messaging;
+using Palantir.Platform.Persistence;
 using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
 using Palantir.SettlementService.Infrastructure;
-using Palantir.SettlementService.Sagas;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
 var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
-                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres;SSL Mode=Disable;Include Error Detail=true";
+                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
+var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
+                 ?? "amqp://guest:guest@localhost:5672";
 
 builder.Services.AddDbContext<SettlementDbContext>(options =>
 {
@@ -24,62 +27,31 @@ builder.Services.AddDbContext<SettlementDbContext>(options =>
     });
 });
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
-
-builder.Services.AddPalantirCaching(redisConnectionString);
+builder.Services.AddPalantirCaching(connectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
 
-builder.Services.AddMassTransit(x =>
+builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
 {
-    x.AddSagaStateMachine<OrderSettlementStateMachine, OrderSettlementState>()
-        .EntityFrameworkRepository(r =>
-        {
-            r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-            r.ExistingDbContext<SettlementDbContext>();
-            r.UsePostgres();
-        });
-
-    x.UsingRabbitMq((context, cfg) =>
-    {
-        var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
-                         ?? "amqp://guest:guest@localhost:5672";
-        cfg.Host(new Uri(rabbitHost));
-        cfg.ConfigureEndpoints(context);
-    });
-});
+    opts.ListenToRabbitQueue(MessagingConstants.RabbitMqQueues.SettlementSaga);
+    opts.PublishMessage<CheckPreTradeRiskCommand>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.RiskChecks);
+    opts.PublishMessage<ConfirmSettlementEvent>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.PortfolioMargin);
+    opts.PublishMessage<ReleaseReservedMarginCommand>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.PortfolioMargin);
+    opts.PublishMessage<AuditTrailEvent>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.AuditTrail);
+}, useEntityFrameworkCore: true);
 
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<SettlementDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    var retryCount = 0;
-    const int maxRetries = 10;
-    while (true)
-    {
-        try
-        {
-            await db.Database.EnsureCreatedAsync();
-            break;
-        }
-        catch (Exception ex) when (retryCount < maxRetries)
-        {
-            retryCount++;
-            logger.LogWarning(ex, "Failed to connect to PalantirDb on attempt {RetryCount}/{MaxRetries}. Retrying in 2 seconds...", retryCount, maxRetries);
-            await Task.Delay(TimeSpan.FromSeconds(2));
-        }
-    }
-}
+await app.Services.EnsurePostgresSchemaCreatedAsync<SettlementDbContext>(
+    "settlement",
+    app.Services.GetRequiredService<ILogger<Program>>());
 
-app.MapGet("/api/v1/settlements/{orderId:guid}", async (Guid orderId, SettlementDbContext db) =>
+app.MapGet("/api/v1/settlements/{orderId:guid}", async (Guid orderId, SettlementDbContext db, CancellationToken ct) =>
 {
-    var state = await db.SettlementStates.FindAsync([orderId]);
+    var state = await db.SettlementStates.AsNoTracking().FirstOrDefaultAsync(s => s.Id == orderId, ct);
     return state != null ? Results.Ok(state) : Results.NotFound();
 });
 

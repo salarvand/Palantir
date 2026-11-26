@@ -11,16 +11,17 @@ public interface IOrderRepository
 
 public class MartenOrderRepository : IOrderRepository
 {
-    private readonly IDocumentSession _session;
+    private readonly IDocumentStore _store;
 
-    public MartenOrderRepository(IDocumentSession session)
+    public MartenOrderRepository(IDocumentStore store)
     {
-        _session = session;
+        _store = store;
     }
 
     public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken ct = default)
     {
-        var streamEvents = await _session.Events.FetchStreamAsync(id.Value, token: ct);
+        await using var session = _store.QuerySession();
+        var streamEvents = await session.Events.FetchStreamAsync(id.Value, token: ct);
         if (streamEvents == null || streamEvents.Count == 0)
         {
             return null;
@@ -44,7 +45,8 @@ public class MartenOrderRepository : IOrderRepository
         var uncommitted = order.DequeueUncommittedEvents();
         if (uncommitted.Count == 0) return;
 
-        _session.Events.Append(order.Id.Value, uncommitted.Cast<object>().ToArray());
-        await _session.SaveChangesAsync(ct);
+        await using var session = _store.LightweightSession();
+        session.Events.Append(order.Id.Value, uncommitted.Cast<object>().ToArray());
+        await session.SaveChangesAsync(ct);
     }
 }

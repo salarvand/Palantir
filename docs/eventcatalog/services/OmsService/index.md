@@ -2,17 +2,18 @@
 id: OmsService
 name: Palantir.OmsService
 version: 1.0.0
-summary: Microservice implementing Vertical Slice Architecture for high-throughput order processing.
+summary: Microservice implementing Microsoft Orleans Grains, Marten Event Sourcing on PostgreSQL, and Wolverine RabbitMQ messaging.
 ---
 
 # Palantir.OmsService
 
-## Features
-- `POST /api/v1/orders` (CreateOrder)
-- `DELETE /api/v1/orders/{id}` (CancelOrder)
-- `GET /api/v1/orders/{id}` (GetOrderById)
-- `GET /api/v1/orders/blotter` (GetActiveBlotter)
+## Endpoints
+- `POST /api/v1/orders` (Submit order via `IOrderGrain`)
+- `DELETE /api/v1/orders/{id}` (Cancel order via `IOrderGrain`)
+- `GET /api/v1/orders/{id}` (Get order snapshot or Marten blotter projection)
+- `GET /api/v1/orders/client/{clientId}` (Get active client order IDs)
+- `GET /api/v1/orders/blotter` (Query Marten `OrderBlotterView` in PostgreSQL)
 
 ## Protocols
 - HTTP/2 gRPC client to `Palantir.LocalEngineService`
-- MassTransit RabbitMQ saga publisher to `Palantir.SettlementService`
+- Wolverine RabbitMQ outbox publisher to `Palantir.SettlementService` and `Palantir.AuditService`

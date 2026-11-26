@@ -1,5 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -8,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Palantir.Constants;
-using StackExchange.Redis;
+using Palantir.Platform.Caching;
 
 namespace Palantir.Platform.Security;
 
@@ -29,16 +31,16 @@ public interface ITokenExchangeService
 public class KeycloakTokenExchangeService : ITokenExchangeService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConnectionMultiplexer _redis;
+    private readonly IKeyValueStore _cache;
     private readonly ILogger<KeycloakTokenExchangeService> _logger;
 
     public KeycloakTokenExchangeService(
         HttpClient httpClient,
-        IConnectionMultiplexer redis,
+        IKeyValueStore cache,
         ILogger<KeycloakTokenExchangeService> logger)
     {
         _httpClient = httpClient;
-        _redis = redis;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -53,13 +55,13 @@ public class KeycloakTokenExchangeService : ITokenExchangeService
 
     public async Task<string> ExchangeTokenAsync(string incomingUserToken, string targetAudience, CancellationToken ct = default)
     {
-        var cacheKey = $"token_exchange:{targetAudience}:{incomingUserToken.GetHashCode()}";
-        var db = _redis.GetDatabase();
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(incomingUserToken)));
+        var cacheKey = MessagingConstants.CacheKeys.TokenExchange(targetAudience, tokenHash);
 
-        var cached = await db.StringGetAsync(cacheKey);
-        if (!cached.IsNullOrEmpty)
+        var cached = await _cache.GetAsync(cacheKey, ct);
+        if (!string.IsNullOrEmpty(cached))
         {
-            return (string)cached!;
+            return cached;
         }
 
         var parameters = new Dictionary<string, string>
@@ -85,7 +87,8 @@ public class KeycloakTokenExchangeService : ITokenExchangeService
         }
 
         var ttl = TimeSpan.FromSeconds(Math.Max(30, tokenResponse.ExpiresIn * 0.8));
-        await db.StringSetAsync(cacheKey, tokenResponse.AccessToken, ttl);
+        await _cache.SetAsync(cacheKey, tokenResponse.AccessToken, ttl, ct);
+        _logger.LogDebug("Exchanged and cached token for audience {Audience}.", targetAudience);
 
         return tokenResponse.AccessToken;
     }
@@ -99,28 +102,26 @@ public interface IPermissionTokenManager
     Task<bool> HasPermissionAsync(Guid userId, string requiredPermission, CancellationToken ct = default);
 }
 
-public class RedisPermissionTokenManager : IPermissionTokenManager
+public class PostgresPermissionTokenManager : IPermissionTokenManager
 {
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisPermissionTokenManager> _logger;
+    private readonly IKeyValueStore _store;
+    private readonly ILogger<PostgresPermissionTokenManager> _logger;
 
-    public RedisPermissionTokenManager(IConnectionMultiplexer redis, ILogger<RedisPermissionTokenManager> logger)
+    public PostgresPermissionTokenManager(IKeyValueStore store, ILogger<PostgresPermissionTokenManager> logger)
     {
-        _redis = redis;
+        _store = store;
         _logger = logger;
     }
 
-    private IDatabase Db => _redis.GetDatabase();
-
     public async Task<PermissionToken?> GetPermissionTokenAsync(Guid userId, CancellationToken ct = default)
     {
-        var key = MessagingConstants.RedisKeys.PermissionToken(userId);
-        var json = await Db.StringGetAsync(key);
-        if (json.IsNullOrEmpty) return null;
+        var key = MessagingConstants.CacheKeys.PermissionToken(userId);
+        var json = await _store.GetAsync(key, ct);
+        if (string.IsNullOrEmpty(json)) return null;
 
         try
         {
-            return JsonSerializer.Deserialize<PermissionToken>((string)json!);
+            return JsonSerializer.Deserialize<PermissionToken>(json);
         }
         catch (Exception ex)
         {
@@ -129,17 +130,17 @@ public class RedisPermissionTokenManager : IPermissionTokenManager
         }
     }
 
-    public async Task SetPermissionTokenAsync(PermissionToken token, TimeSpan ttl, CancellationToken ct = default)
+    public Task SetPermissionTokenAsync(PermissionToken token, TimeSpan ttl, CancellationToken ct = default)
     {
-        var key = MessagingConstants.RedisKeys.PermissionToken(token.UserId);
+        var key = MessagingConstants.CacheKeys.PermissionToken(token.UserId);
         var json = JsonSerializer.Serialize(token);
-        await Db.StringSetAsync(key, json, ttl);
+        return _store.SetAsync(key, json, ttl, ct);
     }
 
-    public async Task InvalidatePermissionTokenAsync(Guid userId, CancellationToken ct = default)
+    public Task InvalidatePermissionTokenAsync(Guid userId, CancellationToken ct = default)
     {
-        var key = MessagingConstants.RedisKeys.PermissionToken(userId);
-        await Db.KeyDeleteAsync(key);
+        var key = MessagingConstants.CacheKeys.PermissionToken(userId);
+        return _store.RemoveAsync(key, ct);
     }
 
     public async Task<bool> HasPermissionAsync(Guid userId, string requiredPermission, CancellationToken ct = default)
@@ -193,7 +194,7 @@ public static class SecurityExtensions
 {
     public static IServiceCollection AddPalantirSecurity(this IServiceCollection services, string? keycloakBaseUrl = null)
     {
-        services.AddSingleton<IPermissionTokenManager, RedisPermissionTokenManager>();
+        services.AddSingleton<IPermissionTokenManager, PostgresPermissionTokenManager>();
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         if (!string.IsNullOrWhiteSpace(keycloakBaseUrl))

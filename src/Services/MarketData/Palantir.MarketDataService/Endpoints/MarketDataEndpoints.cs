@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Palantir.Constants;
+using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
-using StackExchange.Redis;
 
 namespace Palantir.MarketDataService.Endpoints;
 
@@ -18,11 +18,18 @@ public class MarketDataEndpoints : IEndpoint
         group.MapGet("/orderbook/{symbol}", GetCachedOrderBookAsync);
     }
 
-    private static IResult GetQuoteAsync(string symbol)
+    private static async Task<IResult> GetQuoteAsync(string symbol, IKeyValueStore cache, CancellationToken ct)
     {
+        var upperSymbol = symbol.ToUpperInvariant();
+        var json = await cache.GetAsync(MessagingConstants.CacheKeys.MarketQuote(upperSymbol), ct);
+        if (!string.IsNullOrEmpty(json))
+        {
+            return Results.Content(json, "application/json");
+        }
+
         return Results.Ok(new
         {
-            Symbol = symbol.ToUpperInvariant(),
+            Symbol = upperSymbol,
             Bid = 100.50m,
             Ask = 100.55m,
             Last = 100.52m,
@@ -30,23 +37,22 @@ public class MarketDataEndpoints : IEndpoint
         });
     }
 
-    private static async Task<IResult> GetCachedOrderBookAsync(string symbol, IConnectionMultiplexer redis)
+    private static async Task<IResult> GetCachedOrderBookAsync(string symbol, IKeyValueStore cache, CancellationToken ct)
     {
-        var db = redis.GetDatabase();
-        var key = MessagingConstants.RedisKeys.OrderBook(symbol);
-        var json = await db.StringGetAsync(key);
+        var upperSymbol = symbol.ToUpperInvariant();
+        var json = await cache.GetAsync(MessagingConstants.CacheKeys.OrderBook(upperSymbol), ct);
 
-        if (json.IsNullOrEmpty)
+        if (string.IsNullOrEmpty(json))
         {
             return Results.Ok(new
             {
-                Symbol = symbol.ToUpperInvariant(),
+                Symbol = upperSymbol,
                 Bids = new[] { new { Price = 100.50m, Quantity = 1000m } },
                 Asks = new[] { new { Price = 100.55m, Quantity = 850m } },
                 TimestampUtc = DateTimeOffset.UtcNow
             });
         }
 
-        return Results.Content((string)json!, "application/json");
+        return Results.Content(json, "application/json");
     }
 }

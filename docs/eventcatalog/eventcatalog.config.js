@@ -16,13 +16,13 @@ module.exports = {
       id: 'MarketExecution',
       name: 'Market Execution',
       version: '1.0.0',
-      summary: 'Sub-millisecond L2/L3 in-memory order book matching engine and TimescaleDB tick aggregation.',
+      summary: 'Sub-millisecond L2/L3 in-memory order book matching engine and PostgreSQL tick aggregation.',
     },
     {
       id: 'Settlement',
       name: 'Post-Trade Settlement',
       version: '1.0.0',
-      summary: 'Distributed MassTransit state machine saga with compensation.',
+      summary: 'Distributed Wolverine saga persisted in PostgreSQL with compensation over RabbitMQ.',
     },
     {
       id: 'RiskGovernance',

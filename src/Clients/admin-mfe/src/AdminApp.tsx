@@ -73,7 +73,7 @@ export default function AdminApp() {
 
       {/* 2. Granular PBAC Permission Matrix */}
       <section aria-labelledby="perm-matrix-heading" style={{ background: '#111827', borderRadius: '8px', padding: '20px', border: '1px solid #1f2937' }}>
-        <h2 id="perm-matrix-heading" style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>Redis-Cached Permission Matrix (PBAC)</h2>
+        <h2 id="perm-matrix-heading" style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>PostgreSQL-Cached Permission Matrix (PBAC)</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {Object.entries(permissions).map(([perm, enabled]) => (
             <div key={perm} style={{ background: '#090d16', padding: '14px', borderRadius: '6px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -128,7 +128,7 @@ export default function AdminApp() {
         </section>
 
         <section aria-labelledby="audit-log-heading" style={{ background: '#111827', borderRadius: '8px', padding: '20px', border: '1px solid #1f2937' }}>
-          <h2 id="audit-log-heading" style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>Meilisearch Compliance Audit Viewer</h2>
+          <h2 id="audit-log-heading" style={{ fontSize: '18px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>PostgreSQL Compliance Audit Viewer</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
             {auditLogs.map(l => (
               <div key={l.id} style={{ background: '#090d16', padding: '10px', borderRadius: '4px', border: '1px solid #1e293b', fontSize: '12px' }}>

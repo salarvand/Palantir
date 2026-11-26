@@ -1,10 +1,8 @@
 using System.Net.Http.Json;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
-using Qdrant.Client;
-using Qdrant.Client.Grpc;
+using Palantir.AiAssistantService.Persistence;
 
 namespace Palantir.AiAssistantService.Mcp;
 
@@ -73,7 +71,7 @@ public static class McpToolRegistry
         ),
         new(
             "get_market_sentiment",
-            "Analyzes recent financial news and calculates bullish/bearish market sentiment score using vector similarity",
+            "Analyzes recent financial news and calculates bullish/bearish market sentiment score using PostgreSQL pgvector similarity",
             new { type = "object", properties = new { symbol = new { type = "string" } }, required = new[] { "symbol" } }
         )
     ];
@@ -81,7 +79,8 @@ public static class McpToolRegistry
 
 public class McpToolExecutor(
     IHttpClientFactory httpClientFactory,
-    QdrantClient qdrantClient,
+    ISentimentSearchRepository sentimentRepository,
+    IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
     ILogger<McpToolExecutor> logger) : IMcpToolExecutor
 {
     public IReadOnlyList<McpToolDefinition> AvailableTools => McpToolRegistry.AvailableTools;
@@ -202,54 +201,25 @@ public class McpToolExecutor(
 
         try
         {
-            var vector = GenerateSymbolEmbedding(symbol, 128);
+            var upperSymbol = symbol.ToUpperInvariant();
+            var generated = await embeddingGenerator.GenerateAsync([$"Market sentiment and trading news for {upperSymbol}"], cancellationToken: ct);
+            var queryVector = generated[0].Vector.ToArray();
 
-            // Execute vector search with cosine distance threshold (ARCH-03)
-            var searchResults = await qdrantClient.SearchAsync(
-                collectionName: "market_sentiment",
-                vector: vector,
-                limit: 5,
-                scoreThreshold: 0.70f,
-                payloadSelector: true,
-                cancellationToken: ct
-            );
-
-            var resultsList = searchResults.Select(r => new
-            {
-                r.Score,
-                Payload = r.Payload.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? string.Empty)
-            }).ToList();
+            var matches = await sentimentRepository.SearchAsync(upperSymbol, queryVector, limit: 5, minSimilarity: 0.70f, ct);
 
             return new McpToolCallResult(request.ToolName, true, new
             {
-                Symbol = symbol.ToUpperInvariant(),
-                Matches = resultsList,
-                MatchesCount = resultsList.Count,
+                Symbol = upperSymbol,
+                Matches = matches,
+                MatchesCount = matches.Count,
                 QueriedAtUtc = DateTimeOffset.UtcNow
             });
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to query Qdrant sentiment collection for {Symbol}.", symbol);
-            return new McpToolCallResult(request.ToolName, false, null!, $"Qdrant vector search failed: {ex.Message}");
+            logger.LogWarning(ex, "Failed to query PostgreSQL pgvector sentiment for {Symbol}.", symbol);
+            return new McpToolCallResult(request.ToolName, false, null!, $"PostgreSQL pgvector search failed: {ex.Message}");
         }
-    }
-
-    private static float[] GenerateSymbolEmbedding(string symbol, int dimensions)
-    {
-        var vector = new float[dimensions];
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(symbol.ToUpperInvariant()));
-        for (int i = 0; i < dimensions; i++)
-        {
-            vector[i] = (hash[i % hash.Length] / 128f) - 1.0f;
-        }
-
-        float norm = MathF.Sqrt(vector.Sum(x => x * x));
-        if (norm > 0)
-        {
-            for (int i = 0; i < dimensions; i++) vector[i] /= norm;
-        }
-        return vector;
     }
 
     private static string? GetStringArgument(Dictionary<string, object>? arguments, string key)

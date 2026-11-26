@@ -7,11 +7,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Aspire\Palantir.ServiceDefaults\Palantir.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Palantir.Platform\Palantir.Platform.csproj" />
+    <ProjectReference Include="..\..\Oms\Palantir.Oms.Contracts\Palantir.Oms.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MassTransit" />
-    <PackageReference Include="MassTransit.RabbitMQ" />
-    <PackageReference Include="MeiliSearch" />
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 </Project>

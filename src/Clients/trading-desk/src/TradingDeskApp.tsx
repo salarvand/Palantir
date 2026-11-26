@@ -205,7 +205,7 @@ export default function TradingDeskApp() {
         {/* 2. Market Candlestick & Depth Center */}
         <section aria-labelledby="chart-heading" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ background: '#111827', borderRadius: '8px', padding: '16px', border: '1px solid #1f2937' }}>
-            <h2 id="chart-heading" style={{ fontSize: '16px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>TimescaleDB Momentum Feed ({symbol})</h2>
+            <h2 id="chart-heading" style={{ fontSize: '16px', fontWeight: 600, color: '#f8fafc', margin: '0 0 16px 0' }}>PostgreSQL Momentum Feed ({symbol})</h2>
             <div style={{ height: '240px', background: '#090d16', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #1e293b' }}>
               <span style={{ color: '#94a3b8', fontSize: '14px' }}>[Interactive Candlestick Chart: Continuous 1m Aggregates]</span>
             </div>

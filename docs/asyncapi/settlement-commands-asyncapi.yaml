@@ -2,14 +2,14 @@ asyncapi: '3.0.0'
 info:
   title: Palantir Settlement Commands & Saga Events
   version: '1.0.0'
-  description: RabbitMQ asynchronous commands and events driving the two-phase MassTransit settlement saga.
+  description: RabbitMQ asynchronous commands and events driving the two-phase Wolverine settlement saga persisted in PostgreSQL.
 servers:
   rabbitmq:
     host: localhost:5672
     protocol: amqp
 channels:
   settlementCommands:
-    address: trading.sagas
+    address: trading.settlement.saga
     messages:
       initiateSettlement:
         $ref: '#/components/messages/InitiateOrderSettlement'

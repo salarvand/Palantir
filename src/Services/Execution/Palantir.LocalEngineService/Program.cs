@@ -1,57 +1,57 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Palantir.Constants;
 using Palantir.LocalEngineService.Grpc;
-using Palantir.LocalEngineService.Timescale;
+using Palantir.LocalEngineService.Matching;
+using Palantir.LocalEngineService.Persistence;
+using Palantir.Oms.Contracts;
 using Palantir.Platform.Caching;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
+using Palantir.Platform.Messaging;
+using Palantir.Platform.Persistence;
 using Palantir.Platform.Security;
 using Palantir.ServiceDefaults;
+using Wolverine.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddGrpc();
 
-var timescaleConn = builder.Configuration.GetConnectionString(AspireResourceNames.TimescaleDb)
-                    ?? builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
-                    ?? "Host=localhost;Database=TimescaleDb;Username=postgres;Password=postgres";
+var connectionString = builder.Configuration.GetConnectionString(AspireResourceNames.PalantirDb)
+                       ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
+var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
+                 ?? "amqp://guest:guest@localhost:5672";
 
-builder.Services.AddDbContext<TimescaleDbContext>(options =>
+builder.Services.AddDbContext<MarketTickDbContext>(options =>
 {
-    options.UseNpgsql(timescaleConn);
+    options.UseNpgsql(connectionString, npgsql =>
+    {
+        npgsql.EnableRetryOnFailure(10, TimeSpan.FromSeconds(5), null);
+    });
 });
 
-var redisConnectionString = builder.Configuration.GetConnectionString(AspireResourceNames.Redis)
-                            ?? "localhost:6379";
+builder.Services.AddSingleton<IOrderBookRegistry, InMemoryOrderBookRegistry>();
+builder.Services.AddScoped<IOrderExecutionPublisher, OrderExecutionPublisher>();
 
-builder.Services.AddPalantirCaching(redisConnectionString);
+builder.Services.AddPalantirCaching(connectionString);
 builder.Services.AddPalantirSecurity();
 builder.Services.AddPalantirProblemDetails();
 
-builder.Services.AddMassTransit(x =>
+builder.Host.AddPalantirMessaging(connectionString, rabbitHost, opts =>
 {
-    x.UsingRabbitMq((context, cfg) =>
+    opts.PublishMessage<MarketTickRecordedEvent>().ToRabbitExchange(MessagingConstants.RabbitMqExchanges.MarketData, e =>
     {
-        var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
-                         ?? "amqp://guest:guest@localhost:5672";
-        cfg.Host(new Uri(rabbitHost));
-        cfg.ConfigureEndpoints(context);
+        e.ExchangeType = ExchangeType.Fanout;
+        e.BindQueue(MessagingConstants.RabbitMqQueues.MarketTicks);
     });
-
-    x.AddRider(rider =>
+    opts.PublishMessage<OrderBookUpdatedEvent>().ToRabbitExchange(MessagingConstants.RabbitMqExchanges.MarketData, e =>
     {
-        rider.AddProducer<string, MarketTick>(MessagingConstants.KafkaTopics.MarketTicks);
-        rider.UsingKafka((context, k) =>
-        {
-            var kafkaHost = builder.Configuration.GetConnectionString(AspireResourceNames.Kafka)
-                            ?? "localhost:9092";
-            k.Host(kafkaHost);
-        });
+        e.ExchangeType = ExchangeType.Fanout;
+        e.BindQueue(MessagingConstants.RabbitMqQueues.MarketTicks);
     });
-});
+    opts.PublishMessage<TradeExecutedEvent>().ToRabbitQueue(MessagingConstants.RabbitMqQueues.SettlementSaga);
+}, useEntityFrameworkCore: true);
 
 builder.Services.AddEndpoints(typeof(Program).Assembly);
 
@@ -60,12 +60,9 @@ var app = builder.Build();
 app.MapDefaultEndpoints();
 app.UsePalantirExceptionHandler();
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<TimescaleDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    await TimescaleMigration.InitializeTimescaleAsync(db, logger);
-}
+await app.Services.EnsurePostgresSchemaCreatedAsync<MarketTickDbContext>(
+    "local_engine",
+    app.Services.GetRequiredService<ILogger<Program>>());
 
 app.MapEndpoints();
 app.MapGrpcService<MatchingEngineGrpcService>();

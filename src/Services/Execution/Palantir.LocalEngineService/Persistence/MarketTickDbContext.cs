@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Palantir.LocalEngineService.Domain;
 using Palantir.SharedKernel;
 
-namespace Palantir.LocalEngineService.Timescale;
+namespace Palantir.LocalEngineService.Persistence;
 
 public class MarketTick
 {
@@ -18,7 +19,7 @@ public class CandlestickBar
 {
     public DateTimeOffset TimestampUtc { get; set; }
     public string Symbol { get; set; } = string.Empty;
-    public string Timeframe { get; set; } = "1m"; // 1s, 1m, 5m, 1h, 1d
+    public string Timeframe { get; set; } = "1m";
     public decimal Open { get; set; }
     public decimal High { get; set; }
     public decimal Low { get; set; }
@@ -27,22 +28,23 @@ public class CandlestickBar
     public int TradeCount { get; set; }
 }
 
-public class TimescaleDbContext : DbContext
+public class MarketTickDbContext : DbContext
 {
     public DbSet<MarketTick> Ticks => Set<MarketTick>();
     public DbSet<CandlestickBar> Candles => Set<CandlestickBar>();
-    public DbSet<Domain.TradingPair> Pairs => Set<Domain.TradingPair>();
+    public DbSet<TradingPair> Pairs => Set<TradingPair>();
 
-    public TimescaleDbContext(DbContextOptions<TimescaleDbContext> options) : base(options) { }
+    public MarketTickDbContext(DbContextOptions<MarketTickDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("local_engine");
 
         modelBuilder.Entity<MarketTick>(b =>
         {
             b.ToTable("market_ticks");
-            b.HasKey(t => new { t.Id, t.TimestampUtc });
+            b.HasKey(t => t.Id);
             b.Property(t => t.Id).ValueGeneratedOnAdd();
             b.Property(t => t.Symbol).IsRequired().HasMaxLength(20);
             b.Property(t => t.Price).HasPrecision(18, 8);
@@ -52,9 +54,8 @@ public class TimescaleDbContext : DbContext
 
         modelBuilder.Entity<CandlestickBar>(b =>
         {
-            b.HasKey(c => new { c.Symbol, c.Timeframe, c.TimestampUtc });
-            b.Property(c => c.Symbol).IsRequired().HasMaxLength(20);
-            b.Property(c => c.Timeframe).IsRequired().HasMaxLength(10);
+            b.HasNoKey();
+            b.ToView(null);
             b.Property(c => c.Open).HasPrecision(18, 8);
             b.Property(c => c.High).HasPrecision(18, 8);
             b.Property(c => c.Low).HasPrecision(18, 8);
@@ -62,8 +63,9 @@ public class TimescaleDbContext : DbContext
             b.Property(c => c.Volume).HasPrecision(18, 8);
         });
 
-        modelBuilder.Entity<Domain.TradingPair>(b =>
+        modelBuilder.Entity<TradingPair>(b =>
         {
+            b.ToTable("trading_pairs");
             b.HasKey(p => p.Id);
             b.Property(p => p.TickSize).HasPrecision(18, 8);
             b.Property(p => p.LotSize).HasPrecision(18, 8);

@@ -11,11 +11,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" />
     <PackageReference Include="WolverineFx" />
     <PackageReference Include="WolverineFx.Http" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="Marten" />
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
     <PackageReference Include="Grpc.AspNetCore" />
@@ -25,12 +26,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="ZiggyCreatures.FusionCache" />
-    <PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
     <PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry" />
-    <PackageReference Include="StackExchange.Redis" />
     <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Asp.Versioning.Http" />
     <PackageReference Include="Scalar.AspNetCore" />

@@ -12,6 +12,7 @@ public class IamDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("iam");
 
         modelBuilder.Entity<TradingProfile>(b =>
         {

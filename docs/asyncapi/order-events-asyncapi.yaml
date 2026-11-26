@@ -1,36 +1,40 @@
 asyncapi: '3.0.0'
 info:
-  title: Palantir Order Lifecycle Events
+  title: Palantir Order Lifecycle & Audit Events
   version: '1.0.0'
-  description: Order lifecycle domain events broadcast via Kafka for analytics and audit logging.
+  description: Order lifecycle domain and audit events broadcast via RabbitMQ for compliance persistence in PostgreSQL.
 servers:
-  kafkaCluster:
-    host: localhost:9092
-    protocol: kafka
+  rabbitmq:
+    host: localhost:5672
+    protocol: amqp
 channels:
-  orderEvents:
-    address: palantir.order.events
+  auditTrail:
+    address: audit.trail.v1
     messages:
-      orderCreated:
-        $ref: '#/components/messages/OrderCreated'
-      orderMatched:
-        $ref: '#/components/messages/OrderMatched'
+      auditTrailEvent:
+        $ref: '#/components/messages/AuditTrailEvent'
 components:
   messages:
-    OrderCreated:
-      name: OrderCreated
+    AuditTrailEvent:
+      name: AuditTrailEvent
       contentType: application/json
       payload:
         type: object
         required:
+          - eventType
           - orderId
           - clientId
           - symbol
-          - side
-          - quantity
           - price
+          - quantity
+          - timestampUtc
         properties:
+          eventType:
+            type: string
           orderId:
+            type: string
+            format: uuid
+          tradeId:
             type: string
             format: uuid
           clientId:
@@ -38,38 +42,11 @@ components:
             format: uuid
           symbol:
             type: string
-          side:
-            type: string
-            enum: [Buy, Sell]
-          quantity:
-            type: number
           price:
             type: number
-          timestampUtc:
-            type: string
-            format: date-time
-    OrderMatched:
-      name: OrderMatched
-      contentType: application/json
-      payload:
-        type: object
-        required:
-          - orderId
-          - tradeId
-          - fillQuantity
-          - fillPrice
-        properties:
-          orderId:
-            type: string
-            format: uuid
-          tradeId:
-            type: string
-            format: uuid
-          fillQuantity:
+          quantity:
             type: number
-          fillPrice:
-            type: number
-          status:
+          payloadJson:
             type: string
           timestampUtc:
             type: string
