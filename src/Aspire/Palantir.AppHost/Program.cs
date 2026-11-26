@@ -51,7 +51,8 @@ var omsService = builder.AddProject<Projects.Palantir_OmsService>(AspireResource
     .WithReference(localEngine)
     .WithReference(externalGateway)
     .WaitFor(palantirDb)
-    .WaitFor(rabbitmq);
+    .WaitFor(rabbitmq)
+    .WaitFor(localEngine);
 
 var marketData = builder.AddProject<Projects.Palantir_MarketDataService>(AspireResourceNames.MarketDataService)
     .WithReference(palantirDb)

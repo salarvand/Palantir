@@ -6,6 +6,7 @@ using Palantir.Constants;
 using Palantir.LocalEngineService.Grpc;
 using Palantir.Oms.Contracts;
 using Palantir.OmsService.Execution;
+using Palantir.OmsService.Infrastructure;
 using Palantir.OmsService.Projections;
 using Palantir.OmsService.Repositories;
 using Palantir.Platform.Caching;
@@ -29,6 +30,8 @@ var connectionString = builder.Configuration.GetConnectionString(AspireResourceN
                        ?? "Host=localhost;Database=PalantirDb;Username=postgres;Password=postgres";
 var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
                  ?? "amqp://guest:guest@localhost:5672";
+
+await OrleansSchemaInitializer.EnsureInitializedAsync(connectionString);
 
 builder.Host.UseOrleans(siloBuilder =>
 {

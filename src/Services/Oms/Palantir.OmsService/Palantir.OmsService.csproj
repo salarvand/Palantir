@@ -24,4 +24,8 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Infrastructure\OrleansPostgresSchema.sql" />
+  </ItemGroup>
+
 </Project>

@@ -18,7 +18,8 @@ public static class WolverineExtensions
         return hostBuilder.UseWolverine(opts =>
         {
             opts.UseRabbitMq(new Uri(rabbitMqConnectionString))
-                .AutoProvision();
+                .AutoProvision()
+                .DisableSystemRequestReplyQueueDeclaration();
 
             opts.PersistMessagesWithPostgresql(postgresConnectionString, "wolverine");
 

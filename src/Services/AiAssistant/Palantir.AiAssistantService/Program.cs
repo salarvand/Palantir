@@ -94,7 +94,8 @@ app.UsePalantirExceptionHandler();
 
 await app.Services.EnsurePostgresSchemaCreatedAsync<SentimentDbContext>(
     "ai",
-    app.Services.GetRequiredService<ILogger<Program>>());
+    app.Services.GetRequiredService<ILogger<Program>>(),
+    preCreateSql: "CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;");
 
 app.MapEndpoints();
 
