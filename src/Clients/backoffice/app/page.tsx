@@ -16,7 +16,7 @@ export default function BackofficeDashboardPage() {
       >
         <strong style={{ fontSize: '20px', color: '#38bdf8' }}>PALANTIR ADMIN BACKOFFICE</strong>
         <nav role="navigation" aria-label="Backoffice Navigation" style={{ display: 'flex', gap: '16px' }}>
-          <a href="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>Storefront</a>
+          <a href={process.env.NEXT_PUBLIC_STOREFRONT_URL || 'http://localhost:3100'} style={{ color: '#94a3b8', textDecoration: 'none' }}>Storefront</a>
           <a href="/desk" style={{ color: '#38bdf8', textDecoration: 'none' }}>MFE Shell</a>
         </nav>
       </header>

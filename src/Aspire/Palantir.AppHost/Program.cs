@@ -125,70 +125,35 @@ var gateway = builder.AddProject<Projects.Palantir_Gateway>(AspireResourceNames.
     .WithReference(aiAssistant)
     .WithEnvironment("Keycloak__Url", keycloakHttp);
 
-// Frontend UIs Accessible via Aspire Dashboard:
+// Frontend UIs Accessible via Aspire Dashboard (direct npm dev runners without per-app *-installer race/deadlocks):
+var npmCommand = OperatingSystem.IsWindows() ? "npm.cmd" : "npm";
+
+IResourceBuilder<ExecutableResource> AddFrontendUi(string name, string appFolder, int port) =>
+    builder.AddExecutable(name, npmCommand, $"../../Clients/{appFolder}", "run", "dev")
+        .WithHttpEndpoint(port: port, env: "PORT", isProxied: false)
+        .WithReference(gateway)
+        .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
+        .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp);
+
 // 1. Webpack 5 Module Federation Remotes & Host Shell (:3000 - :3003)
-// Note: Only the first workspace app runs `npm install` to prevent concurrent workspace node_modules corruption.
-var tradingDeskMfe = builder.AddJavaScriptApp(AspireResourceNames.TradingDeskMfe, "../../Clients/trading-desk")
-    .WithNpm()
-    .WithHttpEndpoint(port: 3001, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway);
+var tradingDeskMfe = AddFrontendUi(AspireResourceNames.TradingDeskMfe, "trading-desk", 3001);
+var portfolioMfe = AddFrontendUi(AspireResourceNames.PortfolioMfe, "portfolio-mfe", 3002);
+var adminMfe = AddFrontendUi(AspireResourceNames.AdminMfe, "admin-mfe", 3003);
 
-var portfolioMfe = builder.AddJavaScriptApp(AspireResourceNames.PortfolioMfe, "../../Clients/portfolio-mfe")
-    .WithNpm(install: false)
-    .WithHttpEndpoint(port: 3002, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway)
-    .WaitFor(tradingDeskMfe);
-
-var adminMfe = builder.AddJavaScriptApp(AspireResourceNames.AdminMfe, "../../Clients/admin-mfe")
-    .WithNpm(install: false)
-    .WithHttpEndpoint(port: 3003, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway)
-    .WaitFor(tradingDeskMfe);
-
-var frontendShell = builder.AddJavaScriptApp(AspireResourceNames.FrontendShell, "../../Clients/shell")
-    .WithNpm(install: false)
-    .WithHttpEndpoint(port: 3000, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithReference(tradingDeskMfe)
-    .WithReference(portfolioMfe)
-    .WithReference(adminMfe)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WaitFor(gateway)
-    .WaitFor(tradingDeskMfe);
+var frontendShell = AddFrontendUi(AspireResourceNames.FrontendShell, "shell", 3000)
+    .WithReference(tradingDeskMfe.GetEndpoint("http"))
+    .WithReference(portfolioMfe.GetEndpoint("http"))
+    .WithReference(adminMfe.GetEndpoint("http"));
 
 // 2. Next.js Multi-Zones: Storefront (:3100) & Backoffice (:3101)
-var backofficeZone = builder.AddJavaScriptApp(AspireResourceNames.BackofficeZone, "../../Clients/backoffice")
-    .WithNpm(install: false)
-    .WithHttpEndpoint(port: 3101, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithReference(frontendShell)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
-    .WithEnvironment("MFE_SHELL_URL", frontendShell.GetEndpoint("http"))
-    .WaitFor(gateway)
-    .WaitFor(tradingDeskMfe);
+var backofficeZone = AddFrontendUi(AspireResourceNames.BackofficeZone, "backoffice", 3101)
+    .WithReference(frontendShell.GetEndpoint("http"))
+    .WithEnvironment("MFE_SHELL_URL", frontendShell.GetEndpoint("http"));
 
-builder.AddJavaScriptApp(AspireResourceNames.StorefrontZone, "../../Clients/storefront")
-    .WithNpm(install: false)
-    .WithHttpEndpoint(port: 3100, env: "PORT", isProxied: false)
-    .WithReference(gateway)
-    .WithReference(frontendShell)
-    .WithReference(backofficeZone)
-    .WithEnvironment("NEXT_PUBLIC_GATEWAY_URL", gateway.GetEndpoint("http"))
-    .WithEnvironment("NEXT_PUBLIC_KEYCLOAK_URL", keycloakHttp)
+AddFrontendUi(AspireResourceNames.StorefrontZone, "storefront", 3100)
+    .WithReference(frontendShell.GetEndpoint("http"))
+    .WithReference(backofficeZone.GetEndpoint("http"))
     .WithEnvironment("MFE_SHELL_URL", frontendShell.GetEndpoint("http"))
-    .WithEnvironment("BACKOFFICE_URL", backofficeZone.GetEndpoint("http"))
-    .WaitFor(gateway)
-    .WaitFor(tradingDeskMfe);
+    .WithEnvironment("BACKOFFICE_URL", backofficeZone.GetEndpoint("http"));
 
 builder.Build().Run();

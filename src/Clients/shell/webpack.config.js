@@ -5,8 +5,14 @@ const path = require('path');
 module.exports = {
   entry: './src/index.ts',
   mode: 'development',
+  output: {
+    publicPath: process.env.SHELL_PUBLIC_URL || 'http://localhost:3000/',
+  },
   devServer: {
     port: 3000,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    },
     historyApiFallback: true,
   },
   resolve: {

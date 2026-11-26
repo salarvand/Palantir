@@ -7,7 +7,7 @@
 1. **Folder Convention (`Features/` vs `Endpoints/`)**: Every microservice organizes endpoints, commands, queries, validators, and handlers strictly under `Features/<Aggregate>/<Action>/`. The `Endpoints/` folder is permitted **exclusively** inside the chassis project (`src/BuildingBlocks/Palantir.Platform/Endpoints/`).
 2. **BookWorm Service Isolation (Zero `*.Contracts` Projects)**: Following `BookWorm`, there are **zero** `*.Contracts.csproj` projects and **zero** cross-service project references. HTTP DTOs live inside each slice (`Features/`), Orleans grain interfaces live inside `OmsService/Grains/`, and async RabbitMQ messages live inside each service's `IntegrationEvents/Events/` decorated with Wolverine `[MessageIdentity("palantir.<event-name>")]`, verified by `PactNet` and `ArchUnitNET`.
 3. **Microservices Chassis (`Palantir.Platform`)**: All cross-cutting infrastructure (typed `IEndpoint`, API versioning, feature flags, FluentValidation endpoint filter, FusionCache + PostgreSQL L2 cache, Wolverine durable outbox/inbox, Marten event store, gRPC resilience, ProblemDetails, and Keycloak JWT + RFC 8693 Token Exchange) lives in `Palantir.Platform`.
-4. **All UIs Orchestrated in Aspire Dashboard**: `Palantir.AppHost` registers both backend services and all 6 frontend applications via `Aspire.Hosting.JavaScript` (`AddJavaScriptApp`).
+4. **All UIs Orchestrated in Aspire Dashboard**: `Palantir.AppHost` registers both backend services and all 6 frontend applications via `AddExecutable` (`npm run dev`) with clickable endpoints (`:3000`–`:3003`, `:3100`–`:3101`).
 5. **Strict Zero Redundant Code**: No unused packages (`TUnit` removed in favor of `xUnit`), no duplicate endpoint/caching abstractions, and no business logic inside minimal API route lambdas.
 
 ---
@@ -70,7 +70,7 @@ flowchart TB
 - **`Palantir.AppHost/Program.cs`**:
   - Infrastructure: PostgreSQL (`pgvector/pgvector:pg16` -> `PalantirDb`), RabbitMQ (with management plugin), Keycloak (`26.0` importing `deploy/keycloak/palantir-realm.json`).
   - Microservices: All 10 `.NET` backend projects receive `Keycloak__Url` for consistent JWT Bearer validation and RFC 8693 Token Exchange.
-  - **Aspire Dashboard UI Resources (`Aspire.Hosting.JavaScript`)**:
+  - **Aspire Dashboard UI Resources (`AddExecutable` -> `npm run dev`)**:
     - `trading-desk-mfe` (`:3001`)
     - `portfolio-mfe` (`:3002`)
     - `admin-mfe` (`:3003`)
