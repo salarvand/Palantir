@@ -16,11 +16,18 @@ var connectionString = builder.Configuration.GetConnectionString(AspireResourceN
 var rabbitHost = builder.Configuration.GetConnectionString(AspireResourceNames.RabbitMq)
                  ?? "amqp://guest:guest@localhost:5672";
 
-builder.Services.AddHttpClient<IExchangeVenueConnector, RestWebSocketVenueConnector>(client =>
+var mockExchangeUrl = builder.Configuration["ExternalVenues:MockExchangeUrl"];
+if (!string.IsNullOrWhiteSpace(mockExchangeUrl))
 {
-    var baseUri = builder.Configuration["ExternalVenues:MockExchangeUrl"] ?? "http://localhost:5005";
-    client.BaseAddress = new Uri(baseUri);
-});
+    builder.Services.AddHttpClient<IExchangeVenueConnector, RestWebSocketVenueConnector>(client =>
+    {
+        client.BaseAddress = new Uri(mockExchangeUrl);
+    });
+}
+else
+{
+    builder.Services.AddScoped<IExchangeVenueConnector, SimulatedVenueConnector>();
+}
 
 builder.Host.AddPalantirMessaging(connectionString, rabbitHost);
 

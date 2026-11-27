@@ -18,8 +18,10 @@
 @orderId = {{createOrder.response.body.orderId}}
 @userId = {{createUser.response.body.userId}}
 
-# Optional direct microservice base URL (copy dynamic port from Aspire Dashboard -> Resources)
-@serviceUrl = http://localhost:16983
+# Direct microservice HTTP base URLs (from each service's Properties/launchSettings.json; proxied stably by Aspire):
+#   LocalEngine=63897 | Oms=63895 | Risk=63903 | Portfolio=63901 | Settlement=63899
+#   MarketData=63896  | Iam=63892 | Audit=63894 | ExternalGateway=63891 | AiAssistant=63886
+@serviceUrl = http://localhost:63897
 
 ###############################################################################
 # STEP 0: Health, OIDC Discovery & Bearer Token Acquisition
@@ -255,10 +257,10 @@ Content-Type: application/json
   "venueType": "External"
 }
 
-### Step 8.2 — Mock Exchange Quote (Feature Flag: ExternalExchangeSimulator; 404 when disabled)
+### Step 8.2 — Mock Exchange Quote (Feature Flag: ExternalExchangeSimulator; enabled in Development)
 GET {{gateway}}/api/v1/external/mock/quotes/AAPL
 
-### Step 8.3 — Mock Exchange Order Execution (Feature Flag: ExternalExchangeSimulator; 404 when disabled)
+### Step 8.3 — Mock Exchange Order Execution (Feature Flag: ExternalExchangeSimulator; enabled in Development)
 POST {{gateway}}/api/v1/external/mock/orders
 Content-Type: application/json
 
@@ -480,4 +482,4 @@ GET {{serviceUrl}}/scalar/v1
 GET {{serviceUrl}}/asyncapi/asyncapi.json
 
 ### Step 12.6 — Saunter AsyncAPI UI
-GET {{serviceUrl}}/asyncapi
+GET {{serviceUrl}}/asyncapi/ui/index.html

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.FeatureManagement;
 using Palantir.ExternalGatewayService.Features.ExternalOrders.Route;
 using Palantir.SharedKernel;
 
@@ -21,22 +22,15 @@ public interface IExchangeVenueConnector
     Task<bool> CancelOrderAsync(string externalOrderId, CancellationToken ct = default);
 }
 
-public class RestWebSocketVenueConnector : IExchangeVenueConnector
+public sealed class RestWebSocketVenueConnector(
+    HttpClient httpClient,
+    ILogger<RestWebSocketVenueConnector> logger) : IExchangeVenueConnector
 {
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<RestWebSocketVenueConnector> _logger;
-
-    public string VenueName => "SimulatedExternalExchange";
-
-    public RestWebSocketVenueConnector(HttpClient httpClient, ILogger<RestWebSocketVenueConnector> logger)
-    {
-        _httpClient = httpClient;
-        _logger = logger;
-    }
+    public string VenueName => "ExternalExchangeHttp";
 
     public async Task<ExternalExecutionReport> SubmitOrderAsync(ExternalOrderRequest order, CancellationToken ct = default)
     {
-        _logger.LogInformation("Routing order {OrderId} for {Symbol} to venue {Venue}", order.OrderId, order.Symbol, VenueName);
+        logger.LogInformation("Routing order {OrderId} for {Symbol} to venue {Venue}", order.OrderId, order.Symbol, VenueName);
 
         var payload = new
         {
@@ -48,29 +42,49 @@ public class RestWebSocketVenueConnector : IExchangeVenueConnector
             price = order.Price
         };
 
-        var response = await _httpClient.PostAsJsonAsync("/mock-exchange/orders", payload, ct);
-        if (response.IsSuccessStatusCode)
-        {
-            var report = await response.Content.ReadFromJsonAsync<ExternalExecutionReport>(cancellationToken: ct);
-            return report ?? CreateDefaultReport(order);
-        }
+        var response = await httpClient.PostAsJsonAsync("/mock-exchange/orders", payload, ct);
+        response.EnsureSuccessStatusCode();
 
-        return CreateDefaultReport(order);
+        return await response.Content.ReadFromJsonAsync<ExternalExecutionReport>(cancellationToken: ct)
+               ?? throw new InvalidOperationException($"Venue '{VenueName}' returned an empty execution report.");
     }
 
     public async Task<bool> CancelOrderAsync(string externalOrderId, CancellationToken ct = default)
     {
-        var response = await _httpClient.DeleteAsync($"/mock-exchange/orders/{externalOrderId}", ct);
+        var response = await httpClient.DeleteAsync($"/mock-exchange/orders/{externalOrderId}", ct);
         return response.IsSuccessStatusCode;
     }
+}
 
-    private static ExternalExecutionReport CreateDefaultReport(ExternalOrderRequest order) =>
+public sealed class SimulatedVenueConnector(
+    IFeatureManager featureManager,
+    ILogger<SimulatedVenueConnector> logger) : IExchangeVenueConnector
+{
+    public const string FeatureName = "ExternalExchangeSimulator";
+
+    public string VenueName => "SimulatedExternalExchange";
+
+    public async Task<ExternalExecutionReport> SubmitOrderAsync(ExternalOrderRequest order, CancellationToken ct = default)
+    {
+        if (!await featureManager.IsEnabledAsync(FeatureName))
+        {
+            throw new InvalidOperationException(
+                $"No external venue configured: set 'ExternalVenues:MockExchangeUrl' or enable feature '{FeatureName}'.");
+        }
+
+        logger.LogInformation("Simulating external execution for order {OrderId} ({Symbol})", order.OrderId, order.Symbol);
+        return CreateSimulatedReport(order.Symbol, order.Quantity, order.Price);
+    }
+
+    public async Task<bool> CancelOrderAsync(string externalOrderId, CancellationToken ct = default) =>
+        await featureManager.IsEnabledAsync(FeatureName);
+
+    public static ExternalExecutionReport CreateSimulatedReport(string symbol, decimal quantity, decimal price) =>
         new(
             Guid.NewGuid().ToString("N"),
-            order.Symbol,
+            symbol.Trim().ToUpperInvariant(),
             OrderStatus.Filled,
-            order.Quantity,
-            order.Price,
-            DateTimeOffset.UtcNow
-        );
+            quantity,
+            price,
+            DateTimeOffset.UtcNow);
 }

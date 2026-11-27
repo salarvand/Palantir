@@ -186,7 +186,7 @@ Domain enum values used across JSON request bodies come from [`TradingValueObjec
 > **Authorization & Live Endpoint Verification Status**:  
 > - [`AddPalantirJwtAuthentication`](../src/BuildingBlocks/Palantir.Platform/Security/Security.cs#L304-L327) maps Keycloak's nested `realm_access.roles` JSON claim via `MapKeycloakRealmRoles`, so `admin` (`Admin` role) passes all `Permissions.*` authorization checks (`200`/`201` verified on `LocalEngineService`, `RiskService`, `PortfolioService`, `IamService`, `AuditService`, and `AiAssistantService`).
 > - Non-`Admin` users (`Trader`, `RiskOfficer`, `Auditor`) still require a cached `PermissionToken` in PostgreSQL `platform_cache` (`iam:perm:{userId:N}`), which can be provisioned by an `Admin` via **Step 9.2** (`POST /api/v1/iam/users`) or **Step 9.5** (`POST /api/v1/iam/token/exchange`).
-> - See [Section 5](#5-src-codebase-review--known-limitations) for remaining runtime notes (`ExternalGatewayService` `localhost:5005` timeout, `AiProvider:ApiKey` requirement).
+> - See [Section 5](#5-src-codebase-review--known-limitations) for remaining runtime notes (`AiProvider:ApiKey` requirement, MFE local demo state).
 
 ---
 
@@ -320,12 +320,12 @@ await conn.invoke("SubscribeSymbol", "PAL-USD");
 ### Feature 8: External Venue Routing & Mock Exchange Simulator (`Palantir.ExternalGatewayService`)
 
 **What it does**:
-- Routes external venue orders (`POST /api/v1/external/orders`) via `RestWebSocketVenueConnector` (`ExternalVenues:MockExchangeUrl`, default `http://localhost:5005`, returning simulated `Filled` fallback report if unreachable).
+- Routes external venue orders (`POST /api/v1/external/orders`) via `IExchangeVenueConnector`: uses `RestWebSocketVenueConnector` when `ExternalVenues:MockExchangeUrl` is configured, or `SimulatedVenueConnector` when feature flag `"ExternalExchangeSimulator"` is enabled (`true` in `appsettings.Development.json`).
 - Includes built-in mock endpoints (`/api/v1/external/mock/orders` and `/api/v1/external/mock/quotes/{symbol}`) gated by Feature Flag `"ExternalExchangeSimulator"`.
 
 **Execution in `palantir-api.http`**:
 - **Step 8.1**: Routes an external order (`Permissions.Orders.Place`).
-- **Step 8.2 & Step 8.3**: Calls the simulator endpoints (observed live output when flag is unset: `404 Not Found` `{"message": "Feature 'ExternalExchangeSimulator' is currently disabled."}`). Enable via `FeatureManagement__ExternalExchangeSimulator=true` on `Palantir.ExternalGatewayService`.
+- **Step 8.2 & Step 8.3**: Calls the simulator endpoints (`200 OK` in `Development`; `404 Not Found` if `FeatureManagement__ExternalExchangeSimulator` is set to `false`).
 
 ---
 
@@ -400,7 +400,7 @@ Every service calls `builder.AddServiceDefaults()` + `builder.AddPalantirChassis
 - **OpenAPI + Scalar & AsyncAPI + Saunter** (`Palantir.ServiceDefaults`): Available in `Development` on each service's HTTP URL via **Step 12.1–12.6** in [`palantir-api.http`](./palantir-api.http):
   - `/scalar/v1` (Scalar interactive UI, verified `200`)
   - `/openapi/v1.json` (OpenAPI JSON, verified `200`)
-  - `/asyncapi/asyncapi.json` & `/asyncapi` UI (Saunter AsyncAPI specs, verified `200`)
+  - `/asyncapi/asyncapi.json` & `/asyncapi/ui/index.html` (Saunter AsyncAPI specs, verified `200`)
 - **Health Probes**: `/health` (includes `PostgresHealthCheck` `SELECT 1;`) and `/alive` (`live` tag), plus 15s graceful shutdown timeout.
 - **Roslyn Source Generator (`Palantir.Generators`)**: `QueryBinderGenerator` generates `<ClassName>BinderExtensions.FromQuery(IQueryCollection)` for classes marked `[QueryBindable]` / `[QueryParamName("...")]`.
 - **Persistent Job Scheduling (`Palantir.Platform/Scheduling/`)**: `AddPalantirScheduling` packages Quartz.NET with PostgreSQL persistent store + System.Text.Json serialization.
@@ -414,7 +414,7 @@ Our line-by-line review of `src/` plus live Aspire execution identified the foll
 | Area | Finding | Impact & Operator/Developer Guidance |
 | --- | --- | --- |
 | **PBAC Authorization vs. Keycloak JWT** | [`MapKeycloakRealmRoles`](../src/BuildingBlocks/Palantir.Platform/Security/Security.cs#L333-L377) maps Keycloak `realm_access.roles` so `Admin` passes `Permissions.*` checks (`200`/`201` verified). Non-`Admin` realm-imported users (`trader1`, `riskofficer1`, `auditor1`) still have no `iam.Profiles` / `platform_cache` `PermissionToken` until created or assigned by an `Admin` via `IamService`. | Use `admin` (`admin123`) directly or provision profiles via **Step 9.2 / 9.5** in [`palantir-api.http`](./palantir-api.http). |
-| **External Venue Connector Timeout** | `Palantir.ExternalGatewayService` `RestWebSocketVenueConnector` calls `http://localhost:5005/mock-exchange/orders` synchronously when `POST /api/v1/external/orders` (**Step 8.1**) runs, causing HTTP client timeouts if nothing listens on `:5005`. | Configure `ExternalVenues:MockExchangeUrl` or start a mock listener on `:5005`. |
+| **External Venue Simulator (`Development`)** | `Palantir.ExternalGatewayService` uses `SimulatedVenueConnector` when `ExternalVenues:MockExchangeUrl` is unset and `FeatureManagement:ExternalExchangeSimulator` is enabled (`true` in `appsettings.Development.json`); otherwise `RestWebSocketVenueConnector` calls `ExternalVenues:MockExchangeUrl`. | Set `ExternalVenues:MockExchangeUrl` in production to connect to an external exchange HTTP venue; keep `ExternalExchangeSimulator=false` outside `Development`. |
 | **AI Provider Key Required for Chat Agents** | `TradeAnalysisAgent` and `RiskGuardAgent` call `IChatClient.GetResponseAsync` (`AiProviderHttpGuard.EnsureApiKeyConfigured`), and `get_market_sentiment` calls `IEmbeddingGenerator`. | Without `AiProvider:ApiKey`, `GET /api/v1/a2a/card`, `GET /api/v1/ai/mcp/tools`, `get_market_quote`, and prompt-safety blocking work, while `/api/v1/a2a/messages` returns `500` and `/api/v1/ai/stream` aborts after `thought_start`. |
 | **Frontend MFEs Use Local Demo State** | `TradingDeskApp.tsx`, `PortfolioApp.tsx`, `AdminApp.tsx`, `shell/App.tsx`, and `storefront/page.tsx` manage orders, positions, copilot proposals, and user identity in local React state / `setTimeout` rather than calling Gateway APIs or live SignalR/OIDC PKCE flows. | Useful for UI/accessibility demos and `playwright-bdd` tests, not yet wired to backend persistence. |
 | **External Simulator Route & Flag** | `Palantir.Gateway` defines `/mock-exchange/{**catch-all}`, while `SimulateExchangeFeature.cs` registers `/api/v1/external/mock/*` gated by `.RequireFeature("ExternalExchangeSimulator")` (disabled by default); `RestWebSocketVenueConnector` calls `http://localhost:5005/mock-exchange/orders` with a filled fallback. | Enable `FeatureManagement__ExternalExchangeSimulator=true` on `ExternalGatewayService` and use `/api/v1/external/mock/*` when testing the built-in mock endpoints. |
