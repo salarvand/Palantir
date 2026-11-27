@@ -314,9 +314,66 @@ public static class SecurityExtensions
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        MapKeycloakRealmRoles(context.Principal);
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         return services;
+    }
+
+    /// <summary>
+    /// Extracts roles from Keycloak's nested <c>realm_access.roles</c> JSON claim into standard role claims
+    /// so <see cref="ClaimsPrincipal.IsInRole(string)"/> works seamlessly across all services.
+    /// </summary>
+    public static void MapKeycloakRealmRoles(ClaimsPrincipal? principal)
+    {
+        if (principal is null)
+        {
+            return;
+        }
+
+        foreach (var identity in principal.Identities)
+        {
+            var realmAccess = identity.FindFirst("realm_access")?.Value;
+            if (string.IsNullOrWhiteSpace(realmAccess))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(realmAccess);
+                if (!doc.RootElement.TryGetProperty("roles", out var rolesElement) ||
+                    rolesElement.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var roleElement in rolesElement.EnumerateArray())
+                {
+                    if (roleElement.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var role = roleElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(role) && !identity.HasClaim(identity.RoleClaimType, role))
+                    {
+                        identity.AddClaim(new Claim(identity.RoleClaimType, role));
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Ignore malformed realm_access claim payloads
+            }
+        }
     }
 
     public static IHttpClientBuilder AddTokenExchangeHandler(this IHttpClientBuilder builder, string targetAudience)

@@ -16,7 +16,7 @@
 # Chained variables (populated automatically by named requests below in supported HTTP clients)
 @token = {{keycloakToken.response.body.access_token}}
 @orderId = {{createOrder.response.body.orderId}}
-@userId = {{createUser.response.body.id}}
+@userId = {{createUser.response.body.userId}}
 
 # Optional direct microservice base URL (copy dynamic port from Aspire Dashboard -> Resources)
 @serviceUrl = http://localhost:16983

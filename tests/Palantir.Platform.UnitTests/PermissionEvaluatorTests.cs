@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Palantir.Constants;
 using Palantir.Platform.Security;
 using Palantir.Platform.Security.Permissions;
@@ -59,5 +60,28 @@ public sealed class PermissionEvaluatorTests
             .IsAllowed.ShouldBeFalse();
         evaluator.EvaluateGrants(grants, PermissionDimension.Risk, "OverrideLimits", ResourceTemplate.Any("RiskLimit"), allowedContext)
             .IsAllowed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void MapKeycloakRealmRoles_ShouldPopulateRoleClaims_FromRealmAccessJson()
+    {
+        var identity = new ClaimsIdentity([new Claim("realm_access", """{"roles":["Admin","Trader"]}""")], "Bearer");
+        var principal = new ClaimsPrincipal(identity);
+
+        SecurityExtensions.MapKeycloakRealmRoles(principal);
+
+        principal.IsInRole("Admin").ShouldBeTrue();
+        principal.IsInRole("Trader").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void MapKeycloakRealmRoles_ShouldIgnoreMalformedPayload()
+    {
+        var identity = new ClaimsIdentity([new Claim("realm_access", "not-json")], "Bearer");
+        var principal = new ClaimsPrincipal(identity);
+
+        SecurityExtensions.MapKeycloakRealmRoles(principal);
+
+        principal.IsInRole("Admin").ShouldBeFalse();
     }
 }
