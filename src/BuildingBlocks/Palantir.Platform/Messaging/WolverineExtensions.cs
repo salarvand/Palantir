@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Hosting;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -9,15 +11,26 @@ namespace Palantir.Platform.Messaging;
 
 public static class WolverineExtensions
 {
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public static IHostBuilder AddPalantirMessaging(
         this IHostBuilder hostBuilder,
         string postgresConnectionString,
         string rabbitMqConnectionString,
         Action<WolverineOptions>? configure = null,
-        bool useEntityFrameworkCore = false)
+        bool useEntityFrameworkCore = false,
+        Assembly? serviceAssembly = null)
     {
+        var resolvedAssembly = serviceAssembly
+            ?? ResolveServiceAssembly(Assembly.GetCallingAssembly(), Assembly.GetEntryAssembly());
+
         return hostBuilder.UseWolverine(opts =>
         {
+            if (resolvedAssembly is not null)
+            {
+                opts.ApplicationAssembly = resolvedAssembly;
+                opts.Discovery.IncludeAssembly(resolvedAssembly);
+            }
+
             opts.UseRabbitMq(new Uri(rabbitMqConnectionString))
                 .AutoProvision()
                 .DisableSystemRequestReplyQueueDeclaration();
@@ -39,4 +52,9 @@ public static class WolverineExtensions
             configure?.Invoke(opts);
         });
     }
+
+    private static Assembly? ResolveServiceAssembly(Assembly callingAssembly, Assembly? entryAssembly) =>
+        callingAssembly != typeof(WolverineExtensions).Assembly
+            ? callingAssembly
+            : entryAssembly;
 }

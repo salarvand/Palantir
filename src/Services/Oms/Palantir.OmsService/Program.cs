@@ -82,9 +82,12 @@ builder.Services.AddPalantirEventStore(connectionString, opts =>
 });
 builder.Services.AddScoped<IOrderRepository, MartenOrderRepository>();
 
-// Resilient gRPC Matching Client (HTTP/2 + Token Exchange) + Venue Dispatchers
-var localEngineUri = new Uri(builder.Configuration.GetConnectionString(AspireResourceNames.LocalEngineService)
-                             ?? $"http://{AspireResourceNames.LocalEngineService}");
+// Resilient gRPC Matching Client (HTTP/2 over TLS ALPN when Aspire exposes HTTPS, else HTTP) + Token Exchange
+var hasLocalEngineHttps = !string.IsNullOrWhiteSpace(
+    builder.Configuration[$"services:{AspireResourceNames.LocalEngineService}:https:0"]);
+var localEngineUri = new Uri(
+    builder.Configuration.GetConnectionString(AspireResourceNames.LocalEngineService)
+    ?? $"{(hasLocalEngineHttps ? "https" : "http")}://{AspireResourceNames.LocalEngineService}");
 builder.Services.AddResilientGrpcClient<MatchingEngineGrpc.MatchingEngineGrpcClient>(
     localEngineUri,
     AspireResourceNames.LocalEngineService);
