@@ -6,6 +6,7 @@ using Palantir.Constants;
 using Palantir.LocalEngineService.Matching;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Validation;
+using Palantir.SharedKernel;
 
 namespace Palantir.LocalEngineService.Features.Matching.MatchOrder;
 
@@ -15,7 +16,10 @@ public sealed class MatchOrderValidator : AbstractValidator<OrderBookEntry>
     {
         RuleFor(x => x.OrderId).NotEmpty();
         RuleFor(x => x.Symbol).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Side).IsInEnum();
+        RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.Quantity).GreaterThan(0);
+        RuleFor(x => x.Price).GreaterThan(0).When(x => x.Type is OrderType.Limit or OrderType.StopLimit);
     }
 }
 
@@ -42,10 +46,16 @@ internal sealed class MatchOrderEndpoint : IEndpoint<IResult, OrderBookEntry, IO
         IOrderExecutionPublisher executionPublisher,
         CancellationToken cancellationToken = default)
     {
-        var book = bookRegistry.GetOrCreate(entry.Symbol);
-        var matchResult = book.Match(entry);
+        var normalizedEntry = entry with
+        {
+            Symbol = entry.Symbol.Trim().ToUpperInvariant(),
+            RemainingQuantity = entry.Quantity
+        };
 
-        await executionPublisher.PublishMatchResultsAsync(entry.Symbol, entry.Side, book, matchResult, cancellationToken);
+        var book = bookRegistry.GetOrCreate(normalizedEntry.Symbol);
+        var matchResult = book.Match(normalizedEntry);
+
+        await executionPublisher.PublishMatchResultsAsync(normalizedEntry.Symbol, normalizedEntry.Side, book, matchResult, cancellationToken);
         return TypedResults.Ok(matchResult);
     }
 }

@@ -31,19 +31,22 @@ GET {{gateway}}/health
 ### Step 0.2 — Gateway Liveness Probe
 GET {{gateway}}/alive
 
-### Step 0.3 — Keycloak OIDC Discovery
+### Step 0.3 — Keycloak OIDC Discovery (wait ~2 min after AppHost starts; if using a VS Code proxy, add "localhost" to rest-client.excludeHostsForProxy)
 GET {{keycloak}}/realms/palantir/.well-known/openid-configuration
+Connection: close
 
 ### Step 0.4 — Obtain Keycloak Bearer Token (admin / admin123)
 # @name keycloakToken
 POST {{keycloak}}/realms/palantir/protocol/openid-connect/token
 Content-Type: application/x-www-form-urlencoded
+Connection: close
 
 client_id=palantir-shell&grant_type=password&username=admin&password=admin123
 
 ### Step 0.5 — Obtain Keycloak Bearer Token (trader1 / trader123)
 POST {{keycloak}}/realms/palantir/protocol/openid-connect/token
 Content-Type: application/x-www-form-urlencoded
+Connection: close
 
 client_id=palantir-shell&grant_type=password&username=trader1&password=trader123
 
@@ -64,7 +67,7 @@ GET {{gateway}}/api/v1/orders/blotter
 ### Step 2.1 — List Registered Trading Symbols (Public)
 GET {{gateway}}/api/v1/engine/symbols
 
-### Step 2.2 — Create Trading Symbol (requires Permissions.Market.DefineSymbol)
+### Step 2.2 — Create Trading Symbol (201 Created; 409 Conflict if symbol already exists)
 POST {{gateway}}/api/v1/engine/symbols
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -80,7 +83,7 @@ Content-Type: application/json
   "isActive": true
 }
 
-### Step 2.3 — Match Order: Resting Sell Limit @ 150.25 (requires Permissions.Orders.Place)
+### Step 2.3 — Match Order: Resting Sell Limit @ 150.25 (run first; rests on Ask book with filledQuantity=0)
 POST {{gateway}}/api/v1/engine/match
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -96,7 +99,7 @@ Content-Type: application/json
   "timestampUtc": "{{$datetime iso8601}}"
 }
 
-### Step 2.4 — Match Order: Crossing Buy Limit @ 150.25 (requires Permissions.Orders.Place)
+### Step 2.4 — Match Order: Crossing Buy Limit @ 150.25 (run after Step 2.3; matches qty 4 against resting Ask)
 POST {{gateway}}/api/v1/engine/match
 Authorization: Bearer {{token}}
 Content-Type: application/json
