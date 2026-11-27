@@ -1,117 +1,127 @@
-# Comprehensive Developer Guide
+# Palantir Comprehensive Developer Walkthrough
 
-This guide explains how Palantir is structured, how its Building Blocks work, and how to build features that adhere to the platform's architectural invariants.
+This guide walks step by step through every architectural layer, runtime flow, Building Block, microservice, microfrontend, and test suite across `src/` and `tests/`.
 
 ---
 
-## 1. Repository Layout & Dependency Rules
+## Part 1: Solution Topology & Dependency Governance
 
-```text
-Palantir/
-├── src/
-│   ├── Aspire/
-│   │   ├── Palantir.AppHost/          # Aspire orchestration topology
-│   │   └── Palantir.ServiceDefaults/  # OpenTelemetry, service discovery, OpenAPI/AsyncAPI, /health
-│   ├── BuildingBlocks/
-│   │   ├── Palantir.Constants/        # Zero-dependency resource, queue, and permission constants
-│   │   ├── Palantir.SharedKernel/     # Pure DDD domain primitives & specifications
-│   │   ├── Palantir.Platform/         # Service chassis & cross-cutting infrastructure blocks
-│   │   ├── Palantir.Generators*/      # Roslyn source generators
-│   ├── Gateway/Palantir.Gateway/      # YARP reverse proxy
-│   ├── Services/                      # 9 autonomous Vertical Slice microservices
-│   └── Clients/                       # Module Federation MFEs + Next.js Multi-Zones
-└── tests/
-    ├── Palantir.ArchTests/            # ArchUnitNET architecture invariants
-    ├── Palantir.IntegrationTests/     # Aspire DistributedApplicationTestingBuilder tests
-    ├── Palantir.BddTests/             # Reqnroll Gherkin + Aspire acceptance tests
-    ├── Palantir.Platform.UnitTests/   # Unit tests for SharedKernel & Platform blocks
-    └── Services/*.UnitTests/          # Per-service domain & validator unit tests
+`Palantir.slnx` ([Palantir.slnx](../../Palantir.slnx)) targets `.NET 10` with Central Package Management ([Directory.Packages.props](../../Directory.Packages.props)) and enforces strict architectural boundaries via `Palantir.ArchTests`:
+
+1. **`src/BuildingBlocks/Palantir.Constants`**: Zero dependencies on `SharedKernel` or `Platform`. Holds `AspireResourceNames`, `ApiConstants`, `MessagingConstants`, and `Permissions`.
+2. **`src/BuildingBlocks/Palantir.SharedKernel`**: Depends only on `Vogen`. Holds DDD `Entity`, `AggregateRoot`, `Order` / `Trade` aggregates, `OrderDomainEvents`, and `IValidationSpecification`.
+3. **`src/BuildingBlocks/Palantir.Platform`**: Depends on `SharedKernel`, `Constants`, and `Generators.Abstractions`. Exposes `AddPalantirChassis()` and `UsePalantirChassis()`.
+4. **`src/Aspire/`**: `Palantir.AppHost` orchestrates PostgreSQL 16 + pgvector, RabbitMQ, Keycloak 26, all backend services, `Palantir.Gateway`, and 6 frontend apps; `Palantir.ServiceDefaults` adds OpenTelemetry, health checks, service discovery, OpenAPI/Scalar, and AsyncAPI/Saunter.
+5. **`src/Services/`**: 10 autonomous Vertical Slice services with zero cross-service project references.
+
+Deep dive: [Building Blocks Guide](building-blocks/README.md) | [Platform Chassis Guide](building-blocks/platform-chassis.md)
+
+---
+
+## Part 2: How Every Service Boots (`Program.cs` Lifecycle)
+
+Every microservice follows a uniform startup sequence:
+
+1. `builder.AddServiceDefaults()` registers OpenTelemetry, `/health` + `/alive` liveness checks, service discovery, HTTP resilience, and OpenAPI/Scalar.
+2. `builder.AddDefaultAsyncApi(...)` registers Saunter AsyncAPI 3.0 event specifications.
+3. `builder.AddPalantirChassis(typeof(Program).Assembly)` registers FusionCache + PostgreSQL L2, Keycloak JWT + RFC 8693 token exchange, Dimension-Resource-Context permissions, RFC 7807 `ProblemDetails` + `DomainSpecificationExceptionHandler`, API versioning (`/api/v1`), feature flags, FluentValidation + `SpecificationValidator`, Scrutor `IEndpoint` discovery, `ChannelAuditEmitter` + `AuditPipelineService`, `PostgresHealthCheck` + 15s graceful shutdown, and fixed-window rate limiting.
+4. Service-specific stores (`EF Core` / `Marten` / `Orleans`) and `builder.Host.AddPalantirMessaging(...)` (Wolverine + RabbitMQ + PostgreSQL durable outbox/inbox + dead-letter policies) are wired.
+5. `app.MapDefaultEndpoints()`, `app.UseDefaultAsyncApi()`, and `app.UsePalantirChassis()` activate exception handling, authN/authZ, rate limiting, and versioned endpoints.
+
+---
+
+## Part 3: Runtime Walkthrough 1 — Order Lifecycle, Risk & Settlement Saga
+
+Follow an institutional Limit Buy order end to end:
+
+```mermaid
+sequenceDiagram
+    participant Client as Shell / Trading Desk
+    participant GW as Palantir.Gateway
+    participant OMS as OmsService
+    participant Grain as OrderGrain (Orleans)
+    participant LE as LocalEngine (gRPC)
+    participant RMQ as RabbitMQ / Wolverine
+    participant Saga as OrderSettlementSaga
+    participant Risk as RiskService
+    participant Port as PortfolioService
+    participant Audit as AuditService
+
+    Client->>GW: POST /api/v1/orders (JWT)
+    GW->>OMS: Forward with JWT
+    OMS->>OMS: SpecificationValidator + Domain Guard
+    OMS->>Grain: SubmitOrderAsync
+    Grain->>Grain: Append Marten events + AuditEntry
+    Grain->>LE: gRPC MatchOrder (HTTP/2)
+    LE-->>RMQ: TradeExecutedEvent + MarketTickRecordedEvent
+    Grain-->>RMQ: InitiateOrderSettlementCommand
+    RMQ->>Saga: Start(InitiateOrderSettlementCommand)
+    Saga-->>RMQ: CheckPreTradeRiskCommand
+    RMQ->>Risk: EvaluatePreTradeRisk
+    Risk-->>RMQ: PreTradeRiskApprovedEvent (or Failed)
+    RMQ->>Saga: Handle(TradeExecutedEvent) -> Settled
+    Saga-->>RMQ: ConfirmSettlementEvent + AuditTrailEvent
+    RMQ->>Port: Handle(ConfirmSettlementEvent)
+    RMQ->>Audit: Handle(AuditTrailEvent)
 ```
 
-### Enforced Dependency Invariants (`Palantir.ArchTests`)
-1. `Palantir.Constants` has **zero** dependencies on `Palantir.SharedKernel` or `Palantir.Platform`.
-2. `Palantir.SharedKernel` has **zero** dependencies on `Palantir.Platform`, EF Core, Marten, Npgsql, or Wolverine.
-3. Microservices **never** reference each other directly (communicate only via HTTP/gRPC/RabbitMQ).
-4. All service `IEndpoint` and `IValidator<T>` classes must be `sealed` and reside under `Features/`.
+1. **HTTP Validation & Domain Guard**: `CreateOrderEndpoint` ([CreateOrderFeature.cs](../../src/Services/Oms/Palantir.OmsService/Features/Orders/Create/CreateOrderFeature.cs)) runs `CreateOrderValidator` (`SpecificationValidator<CreateOrderCommand>`) using `OrderSymbolSpecification`, `OrderQuantitySpecification`, and `LimitOrderPriceSpecification`. Inside `CreateOrderHandler`, `command.EnsureSatisfies(DomainSpecs)` enforces the identical specifications.
+2. **Actor & Event Store**: `OrderGrain` ([Grains.cs](../../src/Services/Oms/Palantir.OmsService/Grains/Grains.cs)) creates the `Order` aggregate, persists domain events to Marten (`OrderBlotterProjection`), and checkpoints Orleans state.
+3. **Venue Dispatch**: `ExecutionRouter` calls `LocalEngineService` over resilient HTTP/2 gRPC (`MatchingEngineGrpcService`) or `ExternalGatewayService` over HTTP with RFC 8693 token exchange.
+4. **Saga Orchestration & Compensation**: `OrderSettlementSaga` ([OrderSettlementSaga.cs](../../src/Services/Settlement/Palantir.SettlementService/Sagas/OrderSettlementSaga.cs)) coordinates `CheckPreTradeRiskCommand` -> `PreTradeRiskApprovedEvent` -> `TradeExecutedEvent` -> `ConfirmSettlementEvent`, or compensates via `ReleaseReservedMarginCommand` on `OrderSettlementFailedEvent`.
 
 ---
 
-## 2. Building Blocks Deep Dive
+## Part 4: Runtime Walkthrough 2 — Zero-Trust AuthN, Token Exchange & Permissions
 
-### A. Unified Specification Pattern (Domain + HTTP Validation)
-Defined in `Palantir.SharedKernel/Specifications.cs` and bridged to ASP.NET Core in `Palantir.Platform/Validation/`:
-
-1. **Define a Specification once**:
-   ```csharp
-   public sealed class OrderQuantitySpecification : ValidationSpecification<CreateOrderCommand>
-   {
-       public override string RuleName => nameof(CreateOrderCommand.Quantity);
-       public override string ErrorMessage => "Quantity must be greater than zero.";
-       public override bool IsSatisfiedBy(CreateOrderCommand cmd) => cmd.Quantity > 0;
-   }
-   ```
-2. **Compose rules** with `.And()`, `.Or()`, `.Not()`.
-3. **Reuse at the HTTP edge** via `SpecificationValidator<T>` (FluentValidation) or `.WithSpecificationValidation(spec1, spec2)`:
-   ```csharp
-   public sealed class CreateOrderValidator : SpecificationValidator<CreateOrderCommand>
-   {
-       public CreateOrderValidator()
-       {
-           UseSpecification(new OrderQuantitySpecification());
-       }
-   }
-   ```
-4. **Reuse inside Domain / Command Handlers**:
-   ```csharp
-   command.EnsureSatisfies(new OrderQuantitySpecification()); // Throws DomainSpecificationException -> HTTP 400 ProblemDetails
-   ```
-
-### B. Non-Blocking Multi-Sink Auditing
-`AddPalantirAuditing` (automatically wired by `AddPalantirChassis`) registers:
-- `IAuditEmitter` (`ChannelAuditEmitter`) backed by a bounded `Channel<AuditEntry>` (`DropOldest`, capacity 10,000) — **O(1) non-blocking** on request threads.
-- `AuditPipelineService` (`BackgroundService`) draining batches up to 100 entries to all registered `IAuditSink` adapters in parallel:
-  - `PostgresAuditSink`: high-throughput `COPY` binary import into `platform_audit.audit_entries`.
-  - `OtlpAuditSink`: OpenTelemetry `ActivitySource("Palantir.Auditing")` spans/tags.
-  - `StructuredLogAuditSink`: structured `ILogger` audit records.
-  - `RabbitMqAuditSink` (opt-in): publishes `AuditEntry` via isolated DI scopes to Wolverine/RabbitMQ.
-
-Usage in any handler:
-```csharp
-auditEmitter.Emit(AuditEntry.Create(
-    "OrderSubmitted", "OmsService", "Order", orderId.ToString(), "Create",
-    new Dictionary<string, object?> { ["Symbol"] = symbol }));
-```
-
-### C. Dimension-Resource-Context Permission Management
-`Palantir.Platform.Security.Permissions` implements specification-driven ABAC/PBAC authorization on top of Keycloak tokens:
-- **Dimension** (`PermissionDimension`): functional domain (`Orders`, `Risk`, `Portfolio`, `MarketData`, `Settlement`, `Audit`, `Iam`, `System`).
-- **Resource** (`ResourceTemplate`): target entity (`Type`, optional `Id`, optional `OwnerId`).
-- **Context** (`PermissionContext`): runtime conditions (`SubjectUserId`, `ClientIpAddress`, `MarketState`, `IsVpnConnected`, `TenantId`, `CustomAttributes`).
-- **Evaluator** (`IPermissionEvaluator`): evaluates grants against `IPermissionSpecification` rules (`DimensionActionSpec`, `ResourceMatchSpec`, `OwnershipSpec`, `TradingHoursSpec`, `NetworkConditionSpec`).
-
-Endpoints can require either flat permission constants (`RequireAuthorization(Permissions.AllowPlaceOrder)`) or explicit dimensions (`RequireDimension(PermissionDimension.Orders, "Place", "Order")`) — both flow through `IPermissionEvaluator`.
-
-### D. Additional Enterprise Chassis Blocks
-Wired automatically by `AddPalantirChassis` / `UsePalantirChassis` (or opt-in):
-- **Health Checks & Graceful Shutdown** (`HealthChecks/HealthCheckExtensions.cs`): PostgreSQL `SELECT 1` readiness probe + 15s shutdown grace period.
-- **Rate Limiting** (`RateLimiting/RateLimitingExtensions.cs`): Global partitioned fixed-window limiter returning HTTP `429 Too Many Requests`.
-- **Background Scheduling** (`Scheduling/QuartzExtensions.cs`): Opt-in `services.AddPalantirScheduling(connectionString)` using Quartz.NET with PostgreSQL persistent store and `System.Text.Json`.
-- **Messaging Dead-Letter Handling** (`Messaging/DeadLetterExtensions.cs`): Transient retry cooldowns (`TimeoutException`, `NpgsqlException`) followed by Wolverine error-queue routing.
+1. **Authentication**: Clients authenticate against Keycloak 26 (`palantir` realm). Every service validates JWTs via `AddPalantirJwtAuthentication`.
+2. **Token Cache & Exchange**: `IamService` caches `PermissionToken` in `PostgresKeyValueStore` (`platform_cache`). Outgoing service-to-service HTTP/gRPC calls attach `TokenExchangeDelegatingHandler`, which exchanges the incoming Bearer token for the target service audience via Keycloak RFC 8693 (`KeycloakTokenExchangeService`).
+3. **Specification-Driven Authorization**: Both legacy `.RequireAuthorization(Permissions.AllowPlaceOrder)` and `.RequireDimension(PermissionDimension.Orders, "Place", "Order")` flow through `IPermissionEvaluator` ([PermissionEvaluator.cs](../../src/BuildingBlocks/Palantir.Platform/Security/Permissions/PermissionEvaluator.cs)).
+4. **Evaluator Dimensions**: `PermissionEvaluator` evaluates `PermissionGrant`s against `PermissionDimension`, `ResourceTemplate` (`Type`, `Id`, `OwnerId`), and `PermissionContext` (`X-Market-State`, `X-VPN-Connected`, `X-Tenant-Id`, `ClientIpAddress`) using `DimensionActionSpec`, `ResourceMatchSpec`, `OwnershipSpec`, `TradingHoursSpec`, and `NetworkConditionSpec`.
 
 ---
 
-## 3. Adding a New Vertical Slice Feature
+## Part 5: Runtime Walkthrough 3 — Non-Blocking Multi-Sink Audit Pipeline
 
+1. **Hot-Path Emit**: Handlers inject `IAuditEmitter` and call `auditEmitter.Emit(AuditEntry.Create(...))`, which executes a non-blocking `Channel<AuditEntry>.Writer.TryWrite` (`DropOldest`, capacity `10_000`).
+2. **Background Batching**: `AuditPipelineService` ([AuditPipelineService.cs](../../src/BuildingBlocks/Palantir.Platform/Auditing/AuditPipelineService.cs)) reads batches up to 100 entries and dispatches them concurrently to registered `IAuditSink` adapters:
+   - `PostgresAuditSink`: Binary `COPY` into `platform_audit.audit_entries`.
+   - `OtlpAuditSink`: `ActivitySource("Palantir.Auditing")` spans exported via OTLP.
+   - `StructuredLogAuditSink`: Structured `ILogger` audit events.
+   - `RabbitMqAuditSink` (opt-in): Publishes `AuditEntry` via isolated DI scopes.
+3. **Regulatory Store**: `AuditService` additionally consumes `AuditTrailEvent` from `audit.trail.v1` and persists `RegulatoryAuditRecord` into `audit.audit_records` with a PostgreSQL `GIN` full-text index.
+
+---
+
+## Part 6: Runtime Walkthrough 4 — AI Copilot Protocols & Governance
+
+1. **Governance**: `AgentGovernanceManager` ([AgentGovernanceMiddleware.cs](../../src/Services/AiAssistant/Palantir.AiAssistantService/Governance/AgentGovernanceMiddleware.cs)) loads `Policies/ai-agents.yaml`, enforces daily execution budgets, blocks unsafe prompt patterns, and redacts PII via `PresidioPiiRedactor`.
+2. **Multi-Agent Orchestration**: `TradeCopilotCoordinator` coordinates `TradeAnalysisAgent` and `RiskGuardAgent`, querying downstream services (`oms`, `market-data`, `risk`, `portfolio`) with RFC 8693 token exchange.
+3. **Protocols**:
+   - **MCP** (`/mcp` & `/api/v1/mcp/tools`): Exposes `TradingMcpTools` over HTTP transport.
+   - **A2A** (`/api/v1/a2a/card` & `/api/v1/a2a/messages`): Agent card discovery and task messaging.
+   - **AG-UI & A2UI** (`POST /api/v1/ai/stream`): Streams SSE events (`RUN_STARTED`, `thought_start`, `reasoning_token`, `a2ui_component`, `RUN_FINISHED`) rendered by `storefront`'s `A2UIRenderer`.
+
+---
+
+## Part 7: Microservices & Microfrontends Reference
+
+- **Gateway & Microservices**: [Services Index](services/README.md) | [Trading & Execution](services/trading-and-execution.md) | [Risk, Portfolio & Settlement](services/risk-portfolio-settlement.md) | [IAM, Audit & AI](services/platform-and-ai-services.md)
+- **Frontend Clients**: [Microfrontends & Multi-Zones Guide](clients/README.md)
+- **Testing Suites**: [Comprehensive Testing Guide](testing.md)
+
+---
+
+## Part 8: Extending Palantir (Step-by-Step Recipes)
+
+### Adding a New Vertical Slice Feature
 1. Create `src/Services/<Domain>/Palantir.<Service>/Features/<Area>/<Action>/<Action>Feature.cs`.
-2. Define the request/command record, `sealed` `ValidationSpecification<T>` rules, `sealed` `SpecificationValidator<T>`, handler, and `internal sealed` `IEndpoint`.
-3. Emit audit events via `IAuditEmitter` and enforce authorization via `.RequireAuthorization(...)` or `.RequireDimension(...)`.
-4. Add unit tests in `tests/Services/Palantir.<Service>.UnitTests/` and BDD/Integration scenarios if cross-service.
+2. Define `sealed` `ValidationSpecification<T>` classes and a `sealed` `SpecificationValidator<T>` inside `Features/` (enforced by `Palantir.ArchTests`).
+3. Implement the handler, enforcing `command.EnsureSatisfies(...)` and emitting `AuditEntry` via `IAuditEmitter`.
+4. Implement an `internal sealed` `IEndpoint` calling `.WithValidation<TRequest>()`, `.MapToApiVersion(ApiVersioningExtensions.V1)`, and `.RequireAuthorization(...)` or `.RequireDimension(...)`.
+5. Add unit tests under `tests/Services/Palantir.<Service>.UnitTests/` and integration/BDD tests if cross-service.
 
----
-
-## 4. Adding a New Microservice
-
-1. Create `src/Services/<Name>/Palantir.<Name>Service/` referencing `Palantir.ServiceDefaults`, `Palantir.Platform`, `Palantir.SharedKernel`, `Palantir.Constants`.
-2. In `Program.cs`, call `builder.AddServiceDefaults()`, `builder.AddPalantirChassis(typeof(Program).Assembly)`, `app.MapDefaultEndpoints()`, and `app.UsePalantirChassis()`.
-3. Register the resource name in `Palantir.Constants.AspireResourceNames` and wire it in `src/Aspire/Palantir.AppHost/Program.cs` and `Palantir.Gateway/appsettings.json`.
-4. Add `<Service>.UnitTests` under `tests/Services/` and register the assembly in `Palantir.ArchTests/ArchitectureTests.cs`.
+### Adding a New Microservice
+1. Create `src/Services/<Name>/Palantir.<Name>Service/` referencing `Palantir.ServiceDefaults`, `Palantir.Platform`, `Palantir.SharedKernel`, and `Palantir.Constants`.
+2. Register the resource name in `AspireResourceNames`, wire it in `src/Aspire/Palantir.AppHost/Program.cs`, and add its cluster/route in `src/Gateway/Palantir.Gateway/appsettings.json`.
+3. Add a unit test project under `tests/Services/` and register the service assembly in [ArchitectureTests.cs](../../tests/Palantir.ArchTests/ArchitectureTests.cs).

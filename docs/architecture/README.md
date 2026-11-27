@@ -6,6 +6,8 @@ Palantir demonstrates a production-grade cloud-native enterprise architecture bu
 
 ## 1. System Context & Container Topology (C4)
 
+> Full Structurizr C4 model (System Context, Containers, and OMS Components) is also maintained in [c4-model.dsl](c4-model.dsl).
+
 ```mermaid
 graph TB
     subgraph Clients["Frontend Microfrontends & Multi-Zones"]
@@ -54,11 +56,11 @@ graph TB
 ## 2. Internal Service Component View (OMS Example)
 
 ```mermaid
-flowchart LR
-    HTTP["HTTP Endpoint (IEndpoint)"] -->|FluentValidation + Specification| Bus["Wolverine IMessageBus"]
+graph LR
+    HTTP["HTTP Endpoint (IEndpoint)"] -->|FluentValidation + Spec| Bus["Wolverine IMessageBus"]
     Bus --> Handler["Vertical Slice Handler"]
-    Handler -->|Domain Guard| Spec["ValidationSpecification<T>"]
-    Handler -->|Non-blocking| AuditChan["IAuditEmitter (Channel<AuditEntry>)"]
+    Handler -->|Domain Guard| Spec["ValidationSpecification"]
+    Handler -->|Non-blocking| AuditChan["IAuditEmitter (Bounded Channel)"]
     Handler --> Grain["Orleans IOrderGrain"]
     Grain --> Marten["Marten Event Store"]
     Grain -->|Durable Outbox| RMQ["RabbitMQ"]
