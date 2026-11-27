@@ -97,14 +97,21 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageVersion>
 
+    <!-- Background Scheduling -->
+    <PackageVersion Include="Quartz" Version="3.14.0" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.14.0" />
+    <PackageVersion Include="Quartz.Serialization.SystemTextJson" Version="3.14.0" />
+
     <!-- Testing Frameworks -->
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.5" />
+    <PackageVersion Include="Reqnroll.xUnit" Version="3.3.4" />
+    <PackageVersion Include="Respawn" Version="6.2.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="Bogus" Version="35.6.2" />
     <PackageVersion Include="TngTech.ArchUnitNET" Version="0.13.5" />
     <PackageVersion Include="TngTech.ArchUnitNET.xUnit" Version="0.13.5" />
-    <PackageVersion Include="PactNet" Version="5.0.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
   </ItemGroup>
 </Project>

@@ -7,15 +7,30 @@ using Palantir.AuditService.Infrastructure;
 using Palantir.Constants;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Validation;
+using Palantir.SharedKernel;
 
 namespace Palantir.AuditService.Features.AuditLogs.Append;
 
-public sealed class AppendAuditLogValidator : AbstractValidator<RegulatoryAuditRecord>
+public sealed class AuditEventTypeSpecification : ValidationSpecification<RegulatoryAuditRecord>
+{
+    public override string RuleName => nameof(RegulatoryAuditRecord.EventType);
+    public override string ErrorMessage => "EventType is required.";
+    public override bool IsSatisfiedBy(RegulatoryAuditRecord record) => !string.IsNullOrWhiteSpace(record.EventType);
+}
+
+public sealed class AuditSymbolSpecification : ValidationSpecification<RegulatoryAuditRecord>
+{
+    public override string RuleName => nameof(RegulatoryAuditRecord.Symbol);
+    public override string ErrorMessage => "Symbol is required.";
+    public override bool IsSatisfiedBy(RegulatoryAuditRecord record) => !string.IsNullOrWhiteSpace(record.Symbol);
+}
+
+public sealed class AppendAuditLogValidator : SpecificationValidator<RegulatoryAuditRecord>
 {
     public AppendAuditLogValidator()
     {
-        RuleFor(x => x.EventType).NotEmpty();
-        RuleFor(x => x.Symbol).NotEmpty();
+        UseSpecification(new AuditEventTypeSpecification());
+        UseSpecification(new AuditSymbolSpecification());
     }
 }
 

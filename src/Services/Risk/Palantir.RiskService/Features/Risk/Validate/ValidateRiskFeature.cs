@@ -6,17 +6,40 @@ using Palantir.Constants;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Validation;
 using Palantir.RiskService.Engine;
+using Palantir.SharedKernel;
 
 namespace Palantir.RiskService.Features.Risk.Validate;
 
-public sealed class ValidateRiskValidator : AbstractValidator<RiskEvaluationRequest>
+public sealed class RiskSymbolSpecification : ValidationSpecification<RiskEvaluationRequest>
+{
+    public override string RuleName => nameof(RiskEvaluationRequest.Symbol);
+    public override string ErrorMessage => "Symbol must be non-empty and at most 20 characters.";
+    public override bool IsSatisfiedBy(RiskEvaluationRequest req) =>
+        !string.IsNullOrWhiteSpace(req.Symbol) && req.Symbol.Trim().Length <= 20;
+}
+
+public sealed class RiskQuantitySpecification : ValidationSpecification<RiskEvaluationRequest>
+{
+    public override string RuleName => nameof(RiskEvaluationRequest.Quantity);
+    public override string ErrorMessage => "Quantity must be greater than zero.";
+    public override bool IsSatisfiedBy(RiskEvaluationRequest req) => req.Quantity > 0;
+}
+
+public sealed class RiskPriceSpecification : ValidationSpecification<RiskEvaluationRequest>
+{
+    public override string RuleName => nameof(RiskEvaluationRequest.Price);
+    public override string ErrorMessage => "Price must be greater than zero.";
+    public override bool IsSatisfiedBy(RiskEvaluationRequest req) => req.Price > 0;
+}
+
+public sealed class ValidateRiskValidator : SpecificationValidator<RiskEvaluationRequest>
 {
     public ValidateRiskValidator()
     {
         RuleFor(x => x.ClientId).NotEmpty();
-        RuleFor(x => x.Symbol).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.Quantity).GreaterThan(0);
-        RuleFor(x => x.Price).GreaterThan(0);
+        UseSpecification(new RiskSymbolSpecification());
+        UseSpecification(new RiskQuantitySpecification());
+        UseSpecification(new RiskPriceSpecification());
     }
 }
 

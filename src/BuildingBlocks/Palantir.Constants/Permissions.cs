@@ -40,4 +40,16 @@ public static class Permissions
         AllowViewPortfolio, AllowAdjustBalance, AllowInitiateSettlement,
         AllowViewAuditLogs, AllowExportAuditLogs, AllowManageUsers, AllowManageRoles, AllowViewSystemHealth
     ];
+
+    public static class DimensionNames
+    {
+        public const string Orders = "Orders";
+        public const string MarketData = "MarketData";
+        public const string Risk = "Risk";
+        public const string Portfolio = "Portfolio";
+        public const string Settlement = "Settlement";
+        public const string Audit = "Audit";
+        public const string Iam = "Iam";
+        public const string System = "System";
+    }
 }

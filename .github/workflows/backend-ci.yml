@@ -26,8 +26,11 @@ jobs:
       - name: Run Architecture Governance Tests
         run: dotnet test tests/Palantir.ArchTests/Palantir.ArchTests.csproj --no-build --configuration Release
 
-      - name: Run Pact Contract Tests
-        run: dotnet test tests/Palantir.ContractTests/Palantir.ContractTests.csproj --no-build --configuration Release
-
-      - name: Run All Service Unit Tests
+      - name: Run All Unit Tests
         run: dotnet test Palantir.slnx --no-build --configuration Release --filter "FullyQualifiedName~UnitTests"
+
+      - name: Run Aspire Integration Tests
+        run: dotnet test tests/Palantir.IntegrationTests/Palantir.IntegrationTests.csproj --no-build --configuration Release
+
+      - name: Run Reqnroll BDD Tests
+        run: dotnet test tests/Palantir.BddTests/Palantir.BddTests.csproj --no-build --configuration Release

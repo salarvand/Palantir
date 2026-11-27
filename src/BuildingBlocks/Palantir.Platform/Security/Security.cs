@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Palantir.Constants;
 using Palantir.Platform.Caching;
+using Palantir.Platform.Security.Permissions;
 
 namespace Palantir.Platform.Security;
 
@@ -204,11 +205,15 @@ public class PermissionRequirement : IAuthorizationRequirement
 
 public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
-    private readonly IPermissionTokenManager _tokenManager;
+    private readonly IPermissionEvaluator _evaluator;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public PermissionAuthorizationHandler(IPermissionTokenManager tokenManager)
+    public PermissionAuthorizationHandler(
+        IPermissionEvaluator evaluator,
+        IHttpContextAccessor httpContextAccessor)
     {
-        _tokenManager = tokenManager;
+        _evaluator = evaluator;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
@@ -227,8 +232,12 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
             return;
         }
 
-        var hasPermission = await _tokenManager.HasPermissionAsync(userId, requirement.Permission);
-        if (hasPermission)
+        var (dimension, action, resourceType) = PermissionEvaluator.ParsePermissionString(requirement.Permission);
+        var permContext = PermissionContext.FromHttpContext(_httpContextAccessor.HttpContext, userIdClaim);
+        var resource = ResourceTemplate.Any(resourceType ?? dimension.Name);
+
+        var result = await _evaluator.EvaluateAsync(userId, dimension, action, resource, permContext);
+        if (result.IsAllowed)
         {
             context.Succeed(requirement);
         }
@@ -241,7 +250,14 @@ public static class SecurityExtensions
     {
         services.AddHttpContextAccessor();
         services.TryAddSingleton<IPermissionTokenManager, PostgresPermissionTokenManager>();
+        services.TryAddSingleton<IPermissionEvaluator, PermissionEvaluator>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionSpecification, DimensionActionSpec>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionSpecification, ResourceMatchSpec>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionSpecification, OwnershipSpec>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionSpecification, TradingHoursSpec>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionSpecification, NetworkConditionSpec>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAuthorizationHandler, PermissionAuthorizationHandler>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IAuthorizationHandler, DimensionAuthorizationHandler>());
 
         if (!string.IsNullOrWhiteSpace(keycloakBaseUrl))
         {
@@ -257,7 +273,7 @@ public static class SecurityExtensions
 
         services.AddAuthorization(options =>
         {
-            foreach (var permission in Permissions.All)
+            foreach (var permission in Palantir.Constants.Permissions.All)
             {
                 options.AddPolicy(permission, policy => policy.Requirements.Add(new PermissionRequirement(permission)));
             }

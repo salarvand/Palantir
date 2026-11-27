@@ -43,7 +43,9 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Palantir.ArchTests/Palantir.ArchTests.csproj" />
-    <Project Path="tests/Palantir.ContractTests/Palantir.ContractTests.csproj" />
+    <Project Path="tests/Palantir.BddTests/Palantir.BddTests.csproj" />
+    <Project Path="tests/Palantir.IntegrationTests/Palantir.IntegrationTests.csproj" />
+    <Project Path="tests/Palantir.Platform.UnitTests/Palantir.Platform.UnitTests.csproj" />
     <Project Path="tests/Palantir.Testing.Shared/Palantir.Testing.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/Services/">

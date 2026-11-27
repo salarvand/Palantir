@@ -34,11 +34,7 @@ public static class WolverineExtensions
             opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
             opts.Policies.UseDurableInboxOnAllListeners();
 
-            opts.Policies.OnException<TimeoutException>()
-                .RetryWithCooldown(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(2));
-
-            opts.Policies.OnAnyException()
-                .MoveToErrorQueue();
+            opts.AddPalantirDeadLetterHandling();
 
             configure?.Invoke(opts);
         });

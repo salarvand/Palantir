@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Orleans;
 using Palantir.Constants;
 using Palantir.OmsService.Grains;
+using Palantir.Platform.Auditing;
 using Palantir.Platform.Endpoints;
 using Palantir.Platform.Validation;
 using Palantir.SharedKernel;
@@ -26,23 +27,55 @@ public sealed record CreateOrderCommand(
     TimeSpan? ExpiryDuration = null
 );
 
-public sealed class CreateOrderValidator : AbstractValidator<CreateOrderCommand>
+public sealed class OrderSymbolSpecification : ValidationSpecification<CreateOrderCommand>
+{
+    public override string RuleName => nameof(CreateOrderCommand.Symbol);
+    public override string ErrorMessage => "Symbol must be non-empty and at most 20 characters.";
+    public override bool IsSatisfiedBy(CreateOrderCommand cmd) =>
+        !string.IsNullOrWhiteSpace(cmd.Symbol) && cmd.Symbol.Trim().Length <= 20;
+}
+
+public sealed class OrderQuantitySpecification : ValidationSpecification<CreateOrderCommand>
+{
+    public override string RuleName => nameof(CreateOrderCommand.Quantity);
+    public override string ErrorMessage => "Quantity must be greater than zero.";
+    public override bool IsSatisfiedBy(CreateOrderCommand cmd) => cmd.Quantity > 0;
+}
+
+public sealed class LimitOrderPriceSpecification : ValidationSpecification<CreateOrderCommand>
+{
+    public override string RuleName => nameof(CreateOrderCommand.Price);
+    public override string ErrorMessage => "Limit and StopLimit orders require a positive price.";
+    public override bool IsSatisfiedBy(CreateOrderCommand cmd) =>
+        cmd.Type is not (OrderType.Limit or OrderType.StopLimit) || cmd.Price > 0;
+}
+
+public sealed class CreateOrderValidator : SpecificationValidator<CreateOrderCommand>
 {
     public CreateOrderValidator()
     {
         RuleFor(x => x.ClientId).NotEmpty();
-        RuleFor(x => x.Symbol).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.Quantity).GreaterThan(0);
-        RuleFor(x => x.Price)
-            .GreaterThan(0)
-            .When(x => x.Type is OrderType.Limit or OrderType.StopLimit);
+        UseSpecification(new OrderSymbolSpecification());
+        UseSpecification(new OrderQuantitySpecification());
+        UseSpecification(new LimitOrderPriceSpecification());
     }
 }
 
-public sealed class CreateOrderHandler(IGrainFactory grainFactory)
+public sealed class CreateOrderHandler(
+    IGrainFactory grainFactory,
+    IAuditEmitter auditEmitter)
 {
+    private static readonly IValidationSpecification<CreateOrderCommand>[] DomainSpecs =
+    [
+        new OrderSymbolSpecification(),
+        new OrderQuantitySpecification(),
+        new LimitOrderPriceSpecification()
+    ];
+
     public async Task<OrderStateSnapshot> Handle(CreateOrderCommand command, CancellationToken ct)
     {
+        command.EnsureSatisfies(DomainSpecs);
+
         var orderId = command.OrderId != Guid.Empty ? command.OrderId : Guid.NewGuid();
         var request = new SubmitOrderRequest(
             orderId,
@@ -57,7 +90,24 @@ public sealed class CreateOrderHandler(IGrainFactory grainFactory)
             command.ExpiryDuration);
 
         var grain = grainFactory.GetGrain<IOrderGrain>(orderId);
-        return await grain.SubmitOrderAsync(request);
+        var snapshot = await grain.SubmitOrderAsync(request);
+
+        auditEmitter.Emit(AuditEntry.Create(
+            "OrderSubmitted",
+            "OmsService",
+            "Order",
+            snapshot.OrderId.ToString(),
+            "Create",
+            new Dictionary<string, object?>
+            {
+                ["Symbol"] = request.Symbol,
+                ["Side"] = request.Side.ToString(),
+                ["Quantity"] = request.Quantity,
+                ["Price"] = request.Price
+            },
+            command.ClientId.ToString()));
+
+        return snapshot;
     }
 }
 

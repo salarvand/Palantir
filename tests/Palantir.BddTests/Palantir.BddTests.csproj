@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Palantir.BddTests</RootNamespace>
+    <AssemblyName>Palantir.BddTests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Reqnroll.xUnit" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Aspire\Palantir.AppHost\Palantir.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\Palantir.Constants\Palantir.Constants.csproj" />
+    <ProjectReference Include="..\Palantir.Testing.Shared\Palantir.Testing.Shared.csproj" />
+  </ItemGroup>
+</Project>

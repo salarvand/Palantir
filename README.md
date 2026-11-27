@@ -3,7 +3,12 @@
 An enterprise .NET 10 + Aspire reference architecture implementing Vertical Slice Architecture (`Features/`), Domain-Driven Design, CQRS, Event Sourcing, Distributed Sagas, Zero-Trust Keycloak AuthN/AuthZ, Multi-Agent AI Protocols, Module Federation + Next.js Multi-Zones, and multi-layered testing.
 
 ## Reference Documentation
-- [Comprehensive Architectural Reference & Implementation Guide](file:///f:/Lab/Trade/04/Palantir/docs/architecture-reference-guide.md)
+- [Documentation Hub](file:///f:/Lab/Trade/04/Palantir/docs/README.md)
+- [Architecture Reference & Building Blocks Catalog](file:///f:/Lab/Trade/04/Palantir/docs/architecture/README.md)
+- [Comprehensive Developer Guide](file:///f:/Lab/Trade/04/Palantir/docs/guides/developer-guide.md)
+- [Getting Started](file:///f:/Lab/Trade/04/Palantir/docs/guides/getting-started.md)
+- [Testing Guide](file:///f:/Lab/Trade/04/Palantir/docs/guides/testing.md)
+- [Deployment Guide](file:///f:/Lab/Trade/04/Palantir/docs/guides/deployment.md)
 - [WCAG 2.1 AA Accessibility Statement](file:///f:/Lab/Trade/04/Palantir/docs/ACCESSIBILITY.md)
 - [EventCatalog Configuration](file:///f:/Lab/Trade/04/Palantir/docs/eventcatalog/eventcatalog.config.js)
 
@@ -35,9 +40,10 @@ An enterprise .NET 10 + Aspire reference architecture implementing Vertical Slic
   - [x] Webpack 5 Module Federation (`shell` `:3000`, `trading-desk` `:3001`, `portfolio-mfe` `:3002`, `admin-mfe` `:3003`)
   - [x] Microfrontend (MFE) architecture using Next.js Multi-Zones (`storefront` `:3100`, `backoffice` `:3101`)
   - [x] Targeted WCAG 2.1 AA accessibility standards
-- [x] Established a testing strategy:
-  - [x] Service unit tests (`xUnit` + `Shouldly` + `Bogus` across all services)
-  - [x] Pact-based contract testing (`PactNet` HTTP & message contracts)
+- [x] Established a multi-layered testing strategy:
+  - [x] Service & Platform unit tests (`xUnit` + `Shouldly` + `Bogus`)
+  - [x] Aspire distributed integration tests (`Aspire.Hosting.Testing` + `Respawn`)
+  - [x] Behavior-Driven Development acceptance tests (`Reqnroll.xUnit` + Aspire)
   - [x] Architecture testing (`ArchUnitNET` enforcing `Features/`, no service `Endpoints/`, DDD/Saga rules)
   - [x] Frontend unit and component tests (`Vitest` + `@testing-library/react`)
-  - [x] End-to-end testing with BDD (`playwright-bdd` + `@axe-core/playwright` for `tests/bdd/*.feature`)
+  - [x] End-to-end UI & accessibility testing (`playwright-bdd` + `@axe-core/playwright` for `tests/bdd/*.feature`)
