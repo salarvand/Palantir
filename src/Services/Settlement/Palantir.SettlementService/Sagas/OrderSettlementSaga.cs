@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Palantir.Platform.Observability;
 using Palantir.SettlementService.IntegrationEvents.Events;
 using Wolverine;
 
@@ -93,5 +94,6 @@ public class OrderSettlementSaga : Saga
             price,
             quantity,
             JsonSerializer.Serialize(new { OrderId, CurrentState, ReservedMargin, FailureReason }),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            TraceContextSnapshot.GetCurrentTraceId());
 }

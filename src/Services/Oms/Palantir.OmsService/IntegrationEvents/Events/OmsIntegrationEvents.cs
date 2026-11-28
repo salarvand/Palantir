@@ -25,4 +25,5 @@ public sealed record AuditTrailEvent(
     decimal Price,
     decimal Quantity,
     string PayloadJson,
-    DateTimeOffset TimestampUtc);
+    DateTimeOffset TimestampUtc,
+    string? TraceId = null);

@@ -43,6 +43,16 @@ await app.Services.EnsurePostgresSchemaCreatedAsync<AuditDbContext>(
     "audit",
     app.Services.GetRequiredService<ILogger<Program>>());
 
+using (var scope = app.Services.CreateScope())
+{
+    var auditDb = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
+    await auditDb.Database.ExecuteSqlRawAsync(
+        """
+        ALTER TABLE audit.audit_records ADD COLUMN IF NOT EXISTS "TraceId" character varying(32);
+        CREATE INDEX IF NOT EXISTS ix_audit_records_trace_id ON audit.audit_records ("TraceId");
+        """);
+}
+
 app.UsePalantirChassis();
 
 app.Run();

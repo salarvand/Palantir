@@ -37,6 +37,15 @@ public static class Extensions
 
     public static IHostApplicationBuilder ConfigureOpenTelemetry(this IHostApplicationBuilder builder)
     {
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                                              | ActivityTrackingOptions.SpanId
+                                              | ActivityTrackingOptions.ParentId
+                                              | ActivityTrackingOptions.TraceState
+                                              | ActivityTrackingOptions.Baggage;
+        });
+
         builder.Logging.AddOpenTelemetry(logging =>
         {
             logging.IncludeFormattedMessage = true;
@@ -49,14 +58,26 @@ public static class Extensions
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter("Palantir.*");
+                    .AddMeter("Palantir.*")
+                    .AddMeter("Marten")
+                    .AddMeter("ZiggyCreatures.Caching.Fusion");
             })
             .WithTracing(tracing =>
             {
-                tracing.AddAspNetCoreInstrumentation()
+                tracing.AddAspNetCoreInstrumentation(options =>
+                    {
+                        options.Filter = httpContext =>
+                            !httpContext.Request.Path.StartsWithSegments("/health")
+                            && !httpContext.Request.Path.StartsWithSegments("/alive");
+                    })
                     .AddHttpClientInstrumentation()
                     .AddSource("Palantir.*")
-                    .AddSource("Wolverine");
+                    .AddSource("Wolverine")
+                    .AddSource("Marten")
+                    .AddSource("Npgsql")
+                    .AddSource("ZiggyCreatures.Caching.Fusion")
+                    .AddSource("Microsoft.Orleans.Runtime")
+                    .AddSource("Microsoft.Orleans.Application");
             });
 
         builder.AddOpenTelemetryExporters();

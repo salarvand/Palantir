@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Palantir.Platform.Observability;
 using Palantir.SharedKernel;
 
 namespace Palantir.Platform.Exceptions;
@@ -18,8 +19,19 @@ public static class ProblemDetailsExtensions
             options.CustomizeProblemDetails = ctx =>
             {
                 ctx.ProblemDetails.Instance = $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}";
-                ctx.ProblemDetails.Extensions["traceId"] = Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier;
                 ctx.ProblemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow;
+
+                var traceId = TraceContextSnapshot.GetCurrentTraceId();
+                if (traceId is not null)
+                {
+                    ctx.ProblemDetails.Extensions["traceId"] = traceId;
+                }
+
+                var correlationId = ActivityTraceContextAccessor.ResolveCorrelationId(ctx.HttpContext, Activity.Current);
+                if (!string.IsNullOrWhiteSpace(correlationId))
+                {
+                    ctx.ProblemDetails.Extensions["correlationId"] = correlationId;
+                }
             };
         });
 
@@ -33,7 +45,8 @@ public static class ProblemDetailsExtensions
     }
 }
 
-internal sealed class DomainSpecificationExceptionHandler : IExceptionHandler
+internal sealed class DomainSpecificationExceptionHandler(
+    IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -56,7 +69,11 @@ internal sealed class DomainSpecificationExceptionHandler : IExceptionHandler
         };
 
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-        return true;
+        return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            Exception = exception,
+            ProblemDetails = problem
+        });
     }
 }

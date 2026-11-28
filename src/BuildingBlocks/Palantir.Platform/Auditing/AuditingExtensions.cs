@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Palantir.Platform.Auditing.Sinks;
+using Palantir.Platform.Observability;
 
 namespace Palantir.Platform.Auditing;
 
@@ -32,6 +33,7 @@ public static class AuditingExtensions
             });
 
         services.TryAddSingleton(channel);
+        services.TryAddSingleton<ITraceContextAccessor, ActivityTraceContextAccessor>();
         services.TryAddSingleton<IAuditEmitter, ChannelAuditEmitter>();
 
         if (options.EnablePostgresSink)

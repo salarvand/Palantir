@@ -15,6 +15,7 @@ public sealed class AuditRecordEntity
     public decimal Quantity { get; set; }
     public string PayloadJson { get; set; } = string.Empty;
     public DateTimeOffset TimestampUtc { get; set; }
+    public string? TraceId { get; set; }
     public NpgsqlTsVector? SearchVector { get; set; }
 }
 
@@ -38,8 +39,10 @@ public class AuditDbContext : DbContext
             entity.Property(x => x.Price).HasPrecision(18, 8);
             entity.Property(x => x.Quantity).HasPrecision(18, 8);
             entity.Property(x => x.PayloadJson).HasColumnType("jsonb");
+            entity.Property(x => x.TraceId).HasMaxLength(32);
 
             entity.HasIndex(x => new { x.Symbol, x.TimestampUtc });
+            entity.HasIndex(x => x.TraceId);
 
             entity.HasGeneratedTsVectorColumn(
                     x => x.SearchVector!,

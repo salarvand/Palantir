@@ -4,6 +4,7 @@ using Orleans.Runtime;
 using Palantir.OmsService.Execution;
 using Palantir.OmsService.IntegrationEvents.Events;
 using Palantir.OmsService.Repositories;
+using Palantir.Platform.Observability;
 using Palantir.SharedKernel;
 using Wolverine;
 
@@ -267,7 +268,8 @@ public class OrderGrain : Grain, IOrderGrain
             price,
             quantity,
             JsonSerializer.Serialize(ToSnapshot()),
-            DateTimeOffset.UtcNow)).AsTask();
+            DateTimeOffset.UtcNow,
+            TraceContextSnapshot.GetCurrentTraceId())).AsTask();
 
     private static bool IsTerminal(OrderStatus status) =>
         status is OrderStatus.Filled or OrderStatus.Cancelled or OrderStatus.Rejected or OrderStatus.Expired;

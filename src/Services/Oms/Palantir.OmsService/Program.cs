@@ -36,6 +36,8 @@ await OrleansSchemaInitializer.EnsureInitializedAsync(connectionString);
 
 builder.Host.UseOrleans(siloBuilder =>
 {
+    siloBuilder.AddActivityPropagation();
+
     siloBuilder.Configure<ClusterOptions>(options =>
     {
         options.ClusterId = "palantir-oms";

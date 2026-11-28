@@ -13,7 +13,10 @@ public sealed record AuditEntry(
     string ResourceId,
     string Action,
     IReadOnlyDictionary<string, object?> Payload,
-    DateTimeOffset TimestampUtc)
+    DateTimeOffset TimestampUtc,
+    string? TraceId = null,
+    string? SpanId = null,
+    byte TraceFlags = 0)
 {
     public static AuditEntry Create(
         string eventType,
@@ -23,7 +26,10 @@ public sealed record AuditEntry(
         string action,
         IReadOnlyDictionary<string, object?>? payload = null,
         string? userId = null,
-        string? correlationId = null) =>
+        string? correlationId = null,
+        string? traceId = null,
+        string? spanId = null,
+        byte traceFlags = 0) =>
         new(
             Guid.NewGuid(),
             eventType,
@@ -34,5 +40,8 @@ public sealed record AuditEntry(
             resourceId,
             action,
             payload ?? new Dictionary<string, object?>(),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            traceId,
+            spanId,
+            traceFlags);
 }

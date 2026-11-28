@@ -12,7 +12,11 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
         _db = db;
     }
 
-    public async Task<IReadOnlyList<RegulatoryAuditRecord>> QueryLogsAsync(string? symbol, int limit, CancellationToken ct = default)
+    public async Task<IReadOnlyList<RegulatoryAuditRecord>> QueryLogsAsync(
+        string? symbol,
+        int limit,
+        CancellationToken ct = default,
+        string? traceId = null)
     {
         var size = Math.Clamp(limit <= 0 ? 50 : limit, 1, 500);
         IQueryable<AuditRecordEntity> query = _db.AuditRecords.AsNoTracking();
@@ -23,6 +27,12 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
             query = query.Where(x =>
                 x.Symbol == term ||
                 (x.SearchVector != null && x.SearchVector.Matches(EF.Functions.PlainToTsQuery("english", term))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(traceId))
+        {
+            var normalizedTraceId = traceId.Trim().ToLowerInvariant();
+            query = query.Where(x => x.TraceId == normalizedTraceId);
         }
 
         return await query
@@ -38,7 +48,8 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
                 x.Price,
                 x.Quantity,
                 x.PayloadJson,
-                x.TimestampUtc))
+                x.TimestampUtc,
+                x.TraceId))
             .ToListAsync(ct);
     }
 
@@ -46,6 +57,7 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
     {
         var auditId = record.AuditId != Guid.Empty ? record.AuditId : Guid.NewGuid();
         var timestamp = record.TimestampUtc == default ? DateTimeOffset.UtcNow : record.TimestampUtc;
+        var normalizedTraceId = string.IsNullOrWhiteSpace(record.TraceId) ? null : record.TraceId.Trim().ToLowerInvariant();
 
         var entity = new AuditRecordEntity
         {
@@ -58,7 +70,8 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
             Price = record.Price,
             Quantity = record.Quantity,
             PayloadJson = string.IsNullOrWhiteSpace(record.PayloadJson) ? "{}" : record.PayloadJson,
-            TimestampUtc = timestamp
+            TimestampUtc = timestamp,
+            TraceId = normalizedTraceId
         };
 
         _db.AuditRecords.Add(entity);
@@ -68,7 +81,8 @@ public sealed class PostgresAuditLogRepository : IAuditLogRepository
         {
             AuditId = auditId,
             Symbol = entity.Symbol,
-            TimestampUtc = timestamp
+            TimestampUtc = timestamp,
+            TraceId = normalizedTraceId
         };
     }
 }

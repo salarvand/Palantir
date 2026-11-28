@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Palantir.Platform.Observability;
 
 namespace Palantir.Platform.Auditing.Sinks;
 
@@ -13,18 +15,34 @@ public sealed class StructuredLogAuditSink(ILogger<StructuredLogAuditSink> logge
     {
         foreach (var entry in batch)
         {
+            using var traceScope = StartTraceScope(entry);
+
             logger.LogInformation(
-                "AUDIT {AuditId} {ServiceName} {EventType} {ResourceType}/{ResourceId} {Action} User={UserId} Correlation={CorrelationId}",
+                "AUDIT {AuditId} {ServiceName} {EventType} {ResourceType}/{ResourceId} {Action} User={UserId} Correlation={CorrelationId} TraceId={TraceId}",
                 entry.AuditId,
                 entry.ServiceName,
                 entry.EventType,
                 entry.ResourceType,
                 entry.ResourceId,
                 entry.Action,
-                entry.UserId ?? "anonymous",
-                entry.CorrelationId ?? "none");
+                entry.UserId,
+                entry.CorrelationId,
+                entry.TraceId);
         }
 
         return Task.CompletedTask;
+    }
+
+    private static Activity? StartTraceScope(AuditEntry entry)
+    {
+        if (!TraceContextSnapshot.TryParseActivityContext(entry.TraceId, entry.SpanId, entry.TraceFlags, out var parentContext))
+        {
+            return null;
+        }
+
+        var activity = new Activity("AuditLogScope");
+        activity.SetParentId(parentContext.TraceId, parentContext.SpanId, parentContext.TraceFlags);
+        activity.Start();
+        return activity;
     }
 }

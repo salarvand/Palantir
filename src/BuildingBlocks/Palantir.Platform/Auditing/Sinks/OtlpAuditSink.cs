@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Palantir.Platform.Observability;
 
 namespace Palantir.Platform.Auditing.Sinks;
 
@@ -15,7 +16,15 @@ public sealed class OtlpAuditSink : IAuditSink
     {
         foreach (var entry in batch)
         {
-            using var activity = AuditActivitySource.StartActivity("AuditEntry", ActivityKind.Internal);
+            var hasParent = TraceContextSnapshot.TryParseActivityContext(
+                entry.TraceId,
+                entry.SpanId,
+                entry.TraceFlags,
+                out var parentContext);
+
+            using var activity = hasParent
+                ? AuditActivitySource.StartActivity("AuditEntry", ActivityKind.Internal, parentContext)
+                : AuditActivitySource.StartActivity("AuditEntry", ActivityKind.Internal);
             if (activity is null)
             {
                 continue;
@@ -27,8 +36,18 @@ public sealed class OtlpAuditSink : IAuditSink
             activity.SetTag("audit.resource_type", entry.ResourceType);
             activity.SetTag("audit.resource_id", entry.ResourceId);
             activity.SetTag("audit.action", entry.Action);
-            activity.SetTag("audit.user_id", entry.UserId);
-            activity.SetTag("audit.correlation_id", entry.CorrelationId);
+            if (!string.IsNullOrWhiteSpace(entry.UserId))
+            {
+                activity.SetTag("audit.user_id", entry.UserId);
+            }
+            if (!string.IsNullOrWhiteSpace(entry.CorrelationId))
+            {
+                activity.SetTag("audit.correlation_id", entry.CorrelationId);
+            }
+            if (!string.IsNullOrWhiteSpace(entry.TraceId))
+            {
+                activity.SetTag("audit.trace_id", entry.TraceId);
+            }
         }
 
         return Task.CompletedTask;

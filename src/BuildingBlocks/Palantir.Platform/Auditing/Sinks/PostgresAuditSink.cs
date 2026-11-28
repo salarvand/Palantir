@@ -24,7 +24,7 @@ public sealed class PostgresAuditSink(string connectionString) : IAuditSink
         await using var writer = await conn.BeginBinaryImportAsync(
             """
             COPY platform_audit.audit_entries
-                (audit_id, event_type, service_name, user_id, correlation_id, resource_type, resource_id, action, payload_json, timestamp_utc)
+                (audit_id, event_type, service_name, user_id, correlation_id, trace_id, resource_type, resource_id, action, payload_json, timestamp_utc)
             FROM STDIN (FORMAT BINARY)
             """,
             ct);
@@ -37,6 +37,14 @@ public sealed class PostgresAuditSink(string connectionString) : IAuditSink
             await writer.WriteAsync(entry.ServiceName, NpgsqlDbType.Text, ct);
             await writer.WriteAsync(entry.UserId ?? string.Empty, NpgsqlDbType.Text, ct);
             await writer.WriteAsync(entry.CorrelationId ?? string.Empty, NpgsqlDbType.Text, ct);
+            if (!string.IsNullOrWhiteSpace(entry.TraceId))
+            {
+                await writer.WriteAsync(entry.TraceId, NpgsqlDbType.Text, ct);
+            }
+            else
+            {
+                await writer.WriteNullAsync(ct);
+            }
             await writer.WriteAsync(entry.ResourceType, NpgsqlDbType.Text, ct);
             await writer.WriteAsync(entry.ResourceId, NpgsqlDbType.Text, ct);
             await writer.WriteAsync(entry.Action, NpgsqlDbType.Text, ct);
@@ -71,13 +79,16 @@ public sealed class PostgresAuditSink(string connectionString) : IAuditSink
                     service_name TEXT NOT NULL,
                     user_id TEXT NOT NULL,
                     correlation_id TEXT NOT NULL,
+                    trace_id TEXT NULL,
                     resource_type TEXT NOT NULL,
                     resource_id TEXT NOT NULL,
                     action TEXT NOT NULL,
                     payload_json JSONB NOT NULL,
                     timestamp_utc TIMESTAMPTZ NOT NULL
                 );
+                ALTER TABLE platform_audit.audit_entries ADD COLUMN IF NOT EXISTS trace_id TEXT NULL;
                 CREATE INDEX IF NOT EXISTS ix_platform_audit_entries_ts ON platform_audit.audit_entries (timestamp_utc DESC);
+                CREATE INDEX IF NOT EXISTS ix_platform_audit_entries_trace_id ON platform_audit.audit_entries (trace_id);
                 """;
             await cmd.ExecuteNonQueryAsync(ct);
             _schemaInitialized = true;

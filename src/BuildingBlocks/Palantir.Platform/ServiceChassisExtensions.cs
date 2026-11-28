@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Palantir.Constants;
 using Palantir.Platform.Auditing;
 using Palantir.Platform.Caching;
@@ -9,6 +10,7 @@ using Palantir.Platform.Endpoints;
 using Palantir.Platform.Exceptions;
 using Palantir.Platform.FeatureFlags;
 using Palantir.Platform.HealthChecks;
+using Palantir.Platform.Observability;
 using Palantir.Platform.RateLimiting;
 using Palantir.Platform.Security;
 using Palantir.Platform.Validation;
@@ -36,6 +38,7 @@ public static class ServiceChassisExtensions
         builder.Services.AddPalantirFeatureFlags();
         builder.Services.AddPalantirValidators(serviceAssembly);
         builder.Services.AddEndpoints(serviceAssembly);
+        builder.Services.TryAddSingleton<ITraceContextAccessor, ActivityTraceContextAccessor>();
         builder.Services.AddPalantirAuditing(connectionString);
         builder.Services.AddPalantirHealthChecks(connectionString);
         builder.Services.AddPalantirRateLimiting();
@@ -45,6 +48,7 @@ public static class ServiceChassisExtensions
 
     public static WebApplication UsePalantirChassis(this WebApplication app, string? resourceName = null)
     {
+        app.UseMiddleware<TraceContextMiddleware>();
         app.UsePalantirExceptionHandler();
         app.UseAuthentication();
         app.UseAuthorization();

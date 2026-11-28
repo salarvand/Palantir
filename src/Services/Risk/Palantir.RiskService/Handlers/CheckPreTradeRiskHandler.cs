@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Palantir.Platform.Observability;
 using Palantir.RiskService.Engine;
 using Palantir.RiskService.IntegrationEvents.Events;
 using Palantir.SharedKernel;
@@ -28,35 +29,36 @@ public sealed class CheckPreTradeRiskHandler
             command.Price > 0 ? command.Price : 100m,
             DefaultAvailableMargin));
 
+        var traceId = TraceContextSnapshot.GetCurrentTraceId();
+
         if (evaluation.Approved)
         {
             await bus.PublishAsync(new PreTradeRiskApprovedEvent(command.OrderId, evaluation.RequiredMargin));
-            await bus.PublishAsync(new AuditTrailEvent(
-                "PreTradeRiskApproved",
-                command.OrderId,
-                null,
-                command.ClientId,
-                command.Symbol,
-                command.Price,
-                command.Quantity,
-                JsonSerializer.Serialize(evaluation),
-                DateTimeOffset.UtcNow));
+            await bus.PublishAsync(CreateAuditEvent("PreTradeRiskApproved", command, evaluation, traceId));
         }
         else
         {
             var reason = evaluation.RejectionReason ?? "Pre-trade risk limit exceeded.";
             _logger.LogWarning("Order {OrderId} rejected by RiskEngine: {Reason}", command.OrderId, reason);
             await bus.PublishAsync(new OrderSettlementFailedEvent(command.OrderId, reason));
-            await bus.PublishAsync(new AuditTrailEvent(
-                "PreTradeRiskRejected",
-                command.OrderId,
-                null,
-                command.ClientId,
-                command.Symbol,
-                command.Price,
-                command.Quantity,
-                JsonSerializer.Serialize(evaluation),
-                DateTimeOffset.UtcNow));
+            await bus.PublishAsync(CreateAuditEvent("PreTradeRiskRejected", command, evaluation, traceId));
         }
     }
+
+    private static AuditTrailEvent CreateAuditEvent(
+        string eventType,
+        CheckPreTradeRiskCommand command,
+        RiskEvaluationResult evaluation,
+        string? traceId) =>
+        new(
+            eventType,
+            command.OrderId,
+            null,
+            command.ClientId,
+            command.Symbol,
+            command.Price,
+            command.Quantity,
+            JsonSerializer.Serialize(evaluation),
+            DateTimeOffset.UtcNow,
+            traceId);
 }

@@ -14,11 +14,12 @@ internal sealed class ListAuditLogsEndpoint : IEndpoint
     {
         app.MapGet("/audit/logs", async (
                 string? symbol,
+                string? traceId,
                 int? limit,
                 IAuditLogRepository repository,
                 CancellationToken ct) =>
             {
-                var logs = await repository.QueryLogsAsync(symbol, Math.Clamp(limit ?? 50, 1, 500), ct);
+                var logs = await repository.QueryLogsAsync(symbol, Math.Clamp(limit ?? 50, 1, 500), ct, traceId);
                 return TypedResults.Ok(logs);
             })
             .ProducesGet<IReadOnlyList<RegulatoryAuditRecord>>()

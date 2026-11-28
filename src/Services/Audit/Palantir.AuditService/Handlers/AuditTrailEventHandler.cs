@@ -2,6 +2,7 @@ using Palantir.AuditService.Domain;
 using Palantir.AuditService.Infrastructure;
 using Palantir.AuditService.IntegrationEvents.Events;
 using Palantir.Platform.Auditing;
+using Palantir.Platform.Observability;
 
 namespace Palantir.AuditService.Handlers;
 
@@ -11,6 +12,10 @@ public sealed class AuditTrailEventHandler(
 {
     public async Task Handle(AuditTrailEvent evt, CancellationToken ct)
     {
+        var traceId = !string.IsNullOrWhiteSpace(evt.TraceId)
+            ? evt.TraceId
+            : TraceContextSnapshot.GetCurrentTraceId();
+
         auditEmitter.Emit(AuditEntry.Create(
             evt.EventType,
             "AuditService",
@@ -24,7 +29,8 @@ public sealed class AuditTrailEventHandler(
                 ["Quantity"] = evt.Quantity,
                 ["TradeId"] = evt.TradeId
             },
-            evt.ClientId.ToString()));
+            evt.ClientId.ToString(),
+            traceId: traceId));
 
         await repository.AppendLogAsync(new RegulatoryAuditRecord(
             Guid.NewGuid(),
@@ -36,6 +42,7 @@ public sealed class AuditTrailEventHandler(
             evt.Price,
             evt.Quantity,
             evt.PayloadJson,
-            evt.TimestampUtc), ct);
+            evt.TimestampUtc,
+            traceId), ct);
     }
 }

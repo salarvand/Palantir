@@ -6,6 +6,7 @@ using Palantir.AuditService.Domain;
 using Palantir.AuditService.Infrastructure;
 using Palantir.Constants;
 using Palantir.Platform.Endpoints;
+using Palantir.Platform.Observability;
 using Palantir.Platform.Validation;
 using Palantir.SharedKernel;
 
@@ -55,7 +56,11 @@ internal sealed class AppendAuditLogEndpoint : IEndpoint<IResult, RegulatoryAudi
         IAuditLogRepository repository,
         CancellationToken cancellationToken = default)
     {
-        var persisted = await repository.AppendLogAsync(record, cancellationToken);
+        var enriched = string.IsNullOrWhiteSpace(record.TraceId)
+            ? record with { TraceId = TraceContextSnapshot.GetCurrentTraceId() }
+            : record;
+
+        var persisted = await repository.AppendLogAsync(enriched, cancellationToken);
         return TypedResults.Created($"/api/v1/audit/logs/{persisted.AuditId}", persisted);
     }
 }

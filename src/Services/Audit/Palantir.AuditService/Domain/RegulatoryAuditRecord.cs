@@ -12,5 +12,6 @@ public record RegulatoryAuditRecord(
     [property: JsonPropertyName("price")] decimal Price,
     [property: JsonPropertyName("quantity")] decimal Quantity,
     [property: JsonPropertyName("payloadJson")] string PayloadJson,
-    [property: JsonPropertyName("timestampUtc")] DateTimeOffset TimestampUtc
+    [property: JsonPropertyName("timestampUtc")] DateTimeOffset TimestampUtc,
+    [property: JsonPropertyName("traceId")] string? TraceId = null
 );
